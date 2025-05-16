@@ -26,6 +26,8 @@ const StatusBar: FunctionComponent<{
   onDeleteChat?: () => void;
   onUploadChat?: (chatData: any) => void;
   onOpenSettings?: () => void;
+  onAutoFill?: () => void;
+  metadataForChatJson?: Record<string, any>;
 }> = ({
   selectedModel,
   onModelChange,
@@ -37,6 +39,8 @@ const StatusBar: FunctionComponent<{
   onDeleteChat,
   onUploadChat,
   onOpenSettings,
+  onAutoFill,
+  metadataForChatJson
 }) => {
   const numMessages = messages.length;
 
@@ -45,15 +49,13 @@ const StatusBar: FunctionComponent<{
       timestamp: new Date().toISOString(),
       messages: messages,
       metadata: {
+        ...metadataForChatJson,
         model: selectedModel,
-        tokensUp,
-        tokensDown,
-        totalCost,
         messageCount: messages.length,
       },
     };
     return chatData;
-  }, [messages, selectedModel, tokensUp, tokensDown, totalCost]);
+  }, [messages, selectedModel, metadataForChatJson]);
 
   return (
     <Box
@@ -120,6 +122,19 @@ const StatusBar: FunctionComponent<{
           }}
         >
           <SettingsIcon fontSize="small" />
+        </IconButton>
+        <IconButton
+          size="small"
+          title="Auto fill prompt"
+          onClick={() => onAutoFill?.()}
+          sx={{
+            color: "text.secondary",
+            "&:hover": {
+              color: "primary.main",
+            },
+          }}
+        >
+          <span style={{ fontSize: '0.7rem', fontWeight: 'bold' }}>Auto</span>
         </IconButton>
       </Box>
       <Box

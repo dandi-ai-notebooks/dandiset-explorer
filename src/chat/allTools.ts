@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// import * as retrievePynwbDocs from "./tools/retrievePynwbDocs";
 import * as getDandisetAssets from "./tools/getDandisetAssets";
 import * as getNwbFileInfo from "./tools/getNwbFileInfo";
+import * as executePythonCode from "./tools/executePythonCode";
 
-import { ORFunctionDescription } from "./openRouterTypes";
+import { ORFunctionDescription, ORMessage } from "./openRouterTypes";
 import { JupyterConnectivityState } from "../jupyter/JupyterConnectivity";
 
 export interface ToolExecutionContext {
@@ -12,12 +12,15 @@ export interface ToolExecutionContext {
 
 interface NCTool {
   toolFunction: ORFunctionDescription;
-  execute: (params: any, o: ToolExecutionContext) => Promise<string>;
+  execute: (params: any, o: ToolExecutionContext) => Promise<{
+    result: string,
+    newMessages?: ORMessage[]
+  }>
   getDetailedDescription: () => Promise<string>;
   requiresPermission: boolean;
 }
 
-const staticTools: NCTool[] = [getDandisetAssets, getNwbFileInfo];
+const staticTools: NCTool[] = [getDandisetAssets, getNwbFileInfo, executePythonCode];
 
 export const getAllTools = async () => {
   return [...staticTools] as const;

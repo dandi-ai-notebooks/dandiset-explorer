@@ -4,7 +4,8 @@ import { ORFunctionDescription } from "../openRouterTypes";
 
 export const toolFunction: ORFunctionDescription = {
   name: "get_nwbfile_info",
-  description: "Retrieve information about a specific NWB file, including how to load it using Python.",
+  description:
+    "Retrieve information about a specific NWB file, including how to load it using Python.",
   parameters: {
     type: "object",
     properties: {
@@ -19,7 +20,7 @@ export const toolFunction: ORFunctionDescription = {
       assetId: {
         type: "string",
         description: "The ID of the NWB file asset.",
-      }
+      },
     },
     required: ["dandisetId", "dandisetVersion", "assetId"],
   },
@@ -28,13 +29,13 @@ export const toolFunction: ORFunctionDescription = {
 type GetNwbFileInfoParams = {
   dandisetId: string;
   dandisetVersion: string;
-  assetId: string
+  assetId: string;
 };
 
 export const execute = async (
   params: GetNwbFileInfoParams,
-  o: ToolExecutionContext,
-): Promise<string> => {
+  o: ToolExecutionContext
+) => {
   const { assetId } = params;
 
   try {
@@ -43,7 +44,7 @@ export const execute = async (
         "Jupyter server is not available. Please configure a Jupyter server to use this tool."
       );
     }
-    const assetUrl = `https://api.dandiarchive.org/api/assets/${assetId}/download/`
+    const assetUrl = `https://api.dandiarchive.org/api/assets/${assetId}/download/`;
     const client = new PythonSessionClient(o.jupyterConnectivity);
     const outputLines: string[] = [];
     client.onOutputItem((item) => {
@@ -53,7 +54,7 @@ export const execute = async (
         (item.iopubMessage.content.name === "stdout" ||
           item.iopubMessage.content.name === "stderr")
       ) {
-        if ('text' in item.iopubMessage.content) {
+        if ("text" in item.iopubMessage.content) {
           outputLines.push(item.iopubMessage.content.text as string);
         }
       }
@@ -74,13 +75,15 @@ print(usage_script)
     await client.waitUntilIdle();
     await client.shutdown();
 
-    return outputLines.join("\n");
+    return { result: outputLines.join("\n") };
   } catch (error) {
-    return JSON.stringify(
-      { error: error instanceof Error ? error.message : "Unknown error" },
-      null,
-      2
-    );
+    return {
+      result: JSON.stringify(
+        { error: error instanceof Error ? error.message : "Unknown error" },
+        null,
+        2
+      ),
+    };
   }
 };
 
@@ -93,6 +96,6 @@ If you get a message like "get_nwbfile_info module not found. Please install it 
 you need to tell the user that they need to install the get-nwbfile-info package from source using
 "pip install git+https://github.com/rly/get-nwbfile-info". In this case, don't make up usage information.
 `;
-}
+};
 
 export const requiresPermission = false;

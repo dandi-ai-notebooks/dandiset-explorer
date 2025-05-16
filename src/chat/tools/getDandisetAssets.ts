@@ -9,11 +9,13 @@ export const toolFunction: ORFunctionDescription = {
     properties: {
       dandisetId: {
         type: "string",
-        description: "The ID of the dandiset to retrieve assets (or files) from.",
+        description:
+          "The ID of the dandiset to retrieve assets (or files) from.",
       },
       dandisetVersion: {
         type: "string",
-        description: "The version of the dandiset to retrieve assets (or files) from.",
+        description:
+          "The version of the dandiset to retrieve assets (or files) from.",
       },
       page: {
         type: "integer",
@@ -22,14 +24,16 @@ export const toolFunction: ORFunctionDescription = {
       },
       pageSize: {
         type: "integer",
-        description: "The number of assets (or files) to retrieve per page (default is 10).",
+        description:
+          "The number of assets (or files) to retrieve per page (default is 10).",
         default: 10,
       },
       glob: {
         type: "string",
-        description: "A glob pattern to filter the assets (or files) to retrieve.",
+        description:
+          "A glob pattern to filter the assets (or files) to retrieve.",
         default: "",
-      }
+      },
     },
     required: ["dandisetId", "dandisetVersion"],
   },
@@ -46,13 +50,17 @@ type GetDandisetAssetsParams = {
 export const execute = async (
   params: GetDandisetAssetsParams,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _o: any,
-): Promise<string> => {
+  _o: any
+) => {
   const { dandisetId, dandisetVersion, page, pageSize } = params;
 
   try {
     const response = await fetch(
-      `https://api.dandiarchive.org/api/dandisets/${dandisetId}/versions/${dandisetVersion}/assets/?page=${page || 1}&page_size=${pageSize || 10}&metadata=false&zarr=false&glob=${params.glob || ""}`,
+      `https://api.dandiarchive.org/api/dandisets/${dandisetId}/versions/${dandisetVersion}/assets/?page=${
+        page || 1
+      }&page_size=${pageSize || 10}&metadata=false&zarr=false&glob=${
+        params.glob || ""
+      }`,
       {
         method: "GET",
         headers: {
@@ -72,13 +80,15 @@ export const execute = async (
       path: result.path,
       size: result.size,
     }));
-    return JSON.stringify(results, null, 2);
+    return { result: JSON.stringify(results, null, 2) };
   } catch (error) {
-    return JSON.stringify(
-      { error: error instanceof Error ? error.message : "Unknown error" },
-      null,
-      2
-    );
+    return {
+      result: JSON.stringify(
+        { error: error instanceof Error ? error.message : "Unknown error" },
+        null,
+        2
+      ),
+    };
   }
 };
 
@@ -92,6 +102,6 @@ The response will be an array of objects of the form:
       "size": <size_in_bytes>,
 }
 `;
-}
+};
 
 export const requiresPermission = false;

@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Box, Tab, Tabs } from "@mui/material";
 import ChatInterface from "../chat/ChatInterface";
 import { useSearchParams } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { JupyterConnectivityProvider } from "../jupyter/JupyterConnectivityProvider";
 import JupyterConfigurationView from "../jupyter/JupyterConfigurationView";
 
@@ -26,11 +27,37 @@ function ChatPage({ width, height }: ChatPageProps) {
     [dandisetId, dandisetVersion]
   );
 
+  const metadataForChatJson = useMemo(() => {
+    return {
+      application: "dandiset-explorer",
+      dandisetId,
+      dandisetVersion,
+    };
+  }, [dandisetId, dandisetVersion]);
+
   const initialPromptUserChoices = useMemo(() => {
     return ["Tell me about this dandiset"];
   }, []);
 
   const [selectedTab, setSelectedTab] = useState(0);
+
+  const handleChatUploaded = useCallback(
+    (metadata: any) => {
+      const dandisetId = metadata.dandisetId;
+      const dandisetVersion = metadata.dandisetVersion;
+      if (!dandisetId || !dandisetVersion) {
+        return;
+      }
+      const newSearchParams = new URLSearchParams();
+      newSearchParams.set("dandisetId", dandisetId);
+      newSearchParams.set("dandisetVersion", dandisetVersion);
+      window.history.replaceState(
+        {},
+        "",
+        `${window.location.pathname}?${newSearchParams.toString()}`
+      );
+      setSelectedTab(0);
+    }, []);
 
   return (
     <JupyterConnectivityProvider mode="jupyter-server">
@@ -72,6 +99,8 @@ function ChatPage({ width, height }: ChatPageProps) {
           topBubbleContent={`Ask me questions about Dandiset ${dandisetId} version ${dandisetVersion}`}
           initialUserPromptChoices={initialPromptUserChoices}
           chatContextOpts={chatContextOpts}
+          metadataForChatJson={metadataForChatJson}
+          onChatUploaded={handleChatUploaded}
         />
       </Box>
       <Box

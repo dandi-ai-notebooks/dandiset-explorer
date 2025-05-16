@@ -89,7 +89,7 @@ const MarkdownContent: FunctionComponent<MarkdownContentProps> = ({
             <code
               {...rest}
               className={className}
-              style={{ background: "#eee" }}
+              // style={{ background: "#eee" }}
             >
               {children}
             </code>

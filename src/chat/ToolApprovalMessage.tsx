@@ -68,6 +68,7 @@ const ToolApprovalMessage: FunctionComponent<ToolApprovalMessageProps> = ({
 const ToolApprovalMessageGeneric: FunctionComponent<
   ToolApprovalMessageProps
 > = ({ toolCallForPermission, onSetToolCallApproval }) => {
+  const showArguments = toolCallForPermission.function.name !== "execute_python_code";
   return (
     <ToolApprovalMessageContainer>
       <ToolApprovalMessageBubble>
@@ -80,7 +81,7 @@ const ToolApprovalMessageGeneric: FunctionComponent<
             component="div"
             sx={{ fontFamily: "monospace", mb: 2 }}
           >
-            {`${toolCallForPermission.function.name}(${toolCallForPermission.function.arguments})`}
+            {showArguments ? `${toolCallForPermission.function.name}(${toolCallForPermission.function.arguments})` : toolCallForPermission.function.name}
           </Typography>
           <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
             <Button

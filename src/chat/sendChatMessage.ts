@@ -31,21 +31,23 @@ In the next system message, you will find meta information about this Dandiset.
 
 # Execution of code
 
-After your response, if there is Python code that you wish to execute as part of the chat, or if the user has requested that you run some code, use the following format
+Sometimes it is appropriate to provide example scripts for the user to read,
+and at other times it is appropriate to execute code to generate text output and plot images.
+In general you should choose to execute code whenever it seems like that could work in the situation.
 
-\`\`\`python exec
-# Your Python code here
-\`\`\`
-
-The user will then have the option to run it, and the output will be displayed in the chat, including any matplotlib plots that were generated using plt.show().
+If you would like to execute code, use the execute_python_code tool.
 
 When providing code to execute make sure that the script is self-contained.
 
-Only provide one "python exec" code block per response message so it is clear what the user is being asked to run.
+If the user says something like "execute such and such" or "run such and such" or "plot such and such" etc, they mean that they want you make a tool call to execute_python_code.
 
-Since Python variables are not carried over between code blocks, each runnable "python exec" block should produce some output (print or plot). Otherwise it will just be a do-nothing operation.
+After code is executed and the tool returns, you should respond to the output as appropriate in the context of the conversation.
+If there are notable issues you should mention them and/or try to correct the problems with additional tool calls.
 
-If the user says something like "execute this" or "run this", they mean that they want you to provide one of these self-contained exec scripts in the chat.
+You should not repeat the code that you executed in your response since the user will be able to see the content of the tool call.
+However, for other tool calls, you should assume that the content of the tool call is NOT visible to the user.
+
+When you refer to images that were generated, you should refer to them as "the image above" or "the plot above" or "the figure above".
 
 # Suggested follow-up prompts
 
@@ -65,9 +67,6 @@ The number of suggestions should be at most 3. If you have thoroughly answered t
 
 Frame the prompts from the perspective of the user, such as "Tell me more about ..."
 
-If you have provided code in your response, you may want to suggest that the user run the code, in which case you would follow up with a code to execute block.
-However, remember that the script to execute must be self-contained.
-
 # Notes
 
 If the user wants to know about the dandiset in an open-ended way, you will guide the user through the following via follow-up suggestions:
@@ -84,6 +83,8 @@ Do not make the same tool call more than once. For example, if you call get_nwbf
 When you are setting the figsize in matplotlib, as a rule of thumb, use a width of 10.
 
 Do not provide information about other dandisets on DANDI.
+
+While you should generally stick to responding to requests about the Dandiset, if the user wants to test out plotting or something simple, you may oblige.
 
 The following specialized tools are available.
 
@@ -239,14 +240,17 @@ export const sendChatMessage = async (
         const okayToRun = await o.askPermissionToRunTool(tc);
         if (okayToRun) {
           const toolResult = await handleToolCall(tc, {
-            jupyterConnectivity: o.jupyterConnectivity,
+            jupyterConnectivity: o.jupyterConnectivity
           });
           const toolMessage: ORMessage = {
             role: "tool",
-            content: toolResult,
+            content: toolResult.result,
             tool_call_id: tc.id,
           };
           updatedMessages.push(toolMessage);
+          if (toolResult.newMessages) {
+            updatedMessages.push(...toolResult.newMessages);
+          }
           if (o.onPendingMessages) {
             o.onPendingMessages(updatedMessages);
           }
@@ -393,11 +397,11 @@ const completionCacheSet = async (
   // Check and clean up if needed
   const countRequest = store.count();
   countRequest.onsuccess = () => {
-    if (countRequest.result > 30) {
+    if (countRequest.result > 300) {
       // Get all entries sorted by timestamp
       const index = store.index('timestamp');
       const cursorRequest = index.openCursor();
-      let deleteCount = countRequest.result - 30;
+      let deleteCount = countRequest.result - 300;
 
       cursorRequest.onsuccess = (event) => {
         const cursor = (event.target as IDBRequest).result;
@@ -420,7 +424,7 @@ const computeHash = async (input: string): Promise<string> => {
   return hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
 };
 
-const fetchCompletion = async (
+export const fetchCompletion = async (
   request: ORRequest,
   o: {
     openRouterKey?: string;
@@ -450,6 +454,16 @@ const fetchCompletion = async (
 
   const result = (await response.json()) as ORResponse;
 
+  // important to do these checks prior to caching
+  if (!result.choices) {
+    console.warn(result);
+    throw new Error("No choices in response");
+  }
+  if (result.choices.length === 0) {
+    console.warn(result);
+    throw new Error("No choices in response (length 0)");
+  }
+
   // Cache the response
   await completionCacheSet(cacheKey, result);
 
@@ -461,7 +475,10 @@ const handleToolCall = async (
   o: {
     jupyterConnectivity: JupyterConnectivityState;
   }
-): Promise<string> => {
+): Promise<{
+  result: string,
+  newMessages?: ORMessage[]
+}> => {
   if (toolCall.type !== "function") {
     throw new Error(`Unsupported tool call type: ${toolCall.type}`);
   }

@@ -6,6 +6,7 @@ import { ORMessage, ORToolCall } from "./openRouterTypes";
 
 type MessageListProps = {
   messages: ORMessage[];
+  scrollToBottomEnabled: boolean;
   toolCallForPermission?: ORToolCall;
   onSetToolCallApproval?: (toolCall: ORToolCall, approved: boolean) => void;
   height: number;
@@ -15,6 +16,7 @@ type MessageListProps = {
 
 const MessageList: FunctionComponent<MessageListProps> = ({
   messages,
+  scrollToBottomEnabled,
   toolCallForPermission,
   onSetToolCallApproval,
   height,
@@ -28,8 +30,10 @@ const MessageList: FunctionComponent<MessageListProps> = ({
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, toolCallForPermission]);
+    if (scrollToBottomEnabled) {
+      scrollToBottom();
+    }
+  }, [messages, toolCallForPermission, scrollToBottomEnabled]);
 
   return (
     <Box

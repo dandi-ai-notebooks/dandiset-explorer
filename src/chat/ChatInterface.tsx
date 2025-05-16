@@ -1,18 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Box, CircularProgress, Stack } from "@mui/material";
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
-import OpenRouterKeyDialog from "./OpenRouterKeyDialog";
-import { ORContentPart, ORMessage, ORToolCall } from "./openRouterTypes";
+import { useJupyterConnectivity } from "../jupyter/JupyterConnectivity";
+import { getAllTools } from "./allTools";
+import { AVAILABLE_MODELS } from "./availableModels";
+import getAutoFillUserMessage from "./getAutoFillUserMessage";
 import MessageInput from "./MessageInput";
 import MessageList from "./MessageList";
+import OpenRouterKeyDialog from "./OpenRouterKeyDialog";
+import { ORMessage, ORToolCall } from "./openRouterTypes";
 import { sendChatMessage } from "./sendChatMessage";
 import StatusBar from "./StatusBar";
-import { AVAILABLE_MODELS } from "./availableModels";
-import { getAllTools } from "./allTools";
-import { useJupyterConnectivity } from "../jupyter/JupyterConnectivity";
-import PythonSessionClient from "../jupyter/PythonSessionClient";
 
-const MAX_CHAT_COST = 0.25;
+const MAX_CHAT_COST = 0.75;
 
 const cheapModels = ["google/gemini-2.5-flash-preview", "openai/gpt-4o-mini"];
 
@@ -22,6 +22,8 @@ type ChatInterfaceProps = {
   topBubbleContent: string;
   initialUserPromptChoices?: string[];
   chatContextOpts: any;
+  metadataForChatJson?: Record<string, any>;
+  onChatUploaded: (metadata: any) => void;
 };
 
 type PythonSessionOutputItem =
@@ -45,6 +47,8 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
   topBubbleContent,
   initialUserPromptChoices,
   chatContextOpts,
+  metadataForChatJson,
+  onChatUploaded
 }) => {
   const [selectedModel, setSelectedModel] = useState(
     () =>
@@ -72,110 +76,21 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
 
   const jupyterConnectivity = useJupyterConnectivity();
 
-  const handleRunCode = async (code: string) => {
-    if (!jupyterConnectivity.jupyterServerIsAvailable) {
-      alert(
-        "Jupyter server is not available. Please check your Jupyter configuration."
-      );
-      return;
-    }
-    try {
-      const client = new PythonSessionClient(jupyterConnectivity);
-      const outputItems: PythonSessionOutputItem[] = [];
-      client.onOutputItem((item) => {
-        if (item.type === "iopub") {
-          const msg = item.iopubMessage;
-          console.log("iopub", msg);
-          if ("name" in msg.content) {
-            if (
-              msg.content.name === "stdout" ||
-              msg.content.name === "stderr"
-            ) {
-              outputItems.push({
-                type: msg.content.name,
-                content: msg.content.text as string,
-              });
-            }
-          } else if ("traceback" in msg.content) {
-            outputItems.push({
-              type: "stderr",
-              content:
-                (msg.content as any).traceback.join("\n") +
-                "\n" +
-                msg.content.evalue,
-            });
-          } else if ("data" in msg.content) {
-            if ("image/png" in (msg.content.data as any)) {
-              outputItems.push({
-                type: "image",
-                format: "png",
-                content: (msg.content.data as any)["image/png"] as string,
-              });
-            }
-          }
-        }
-      });
-
-      await client.initiate();
-      await client.runCode(code);
-      await client.waitUntilIdle();
-      await client.shutdown();
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "system",
-          content: [
-            {
-              type: "text",
-              text: "Execution result:",
-            },
-            ...outputItems.map((item) => {
-              if (item.type === "stdout" || item.type === "stderr") {
-                const prefix = item.type === "stdout" ? "STDOUT" : "STDERR";
-                return {
-                  type: "text",
-                  text: `${prefix}: ${item.content}`,
-                } as ORContentPart;
-              } else if (item.type === "image") {
-                return {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:${item.format};base64,${item.content}`,
-                  },
-                } as ORContentPart;
-              } else {
-                return {
-                  type: "text",
-                  text: `Unknown output item type: ${(item as any).type}`,
-                } as ORContentPart;
-              }
-            }),
-          ],
-        },
-      ]);
-    } catch (error) {
-      console.error("Error running code:", error);
-      alert(
-        `Error running code: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-    }
-  };
-
   const handleSendMessage = async (content: string) => {
     const userMessage: ORMessage = {
       role: "user",
       content,
     };
 
+    // as soon as user has submitted something, we enable scrolling to bottom on each new message
+    setScrollToBottomEnabled(true);
+
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
 
     try {
       const response = await sendChatMessage(
-        [...messages, userMessage],
+        content ? [...messages, userMessage] : [...messages],
         selectedModel,
         {
           jupyterConnectivity,
@@ -267,6 +182,8 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     // }
 
     // Update chat state
+    // upon initial load, we are not going to scroll to the bottom
+    setScrollToBottomEnabled(false);
     setMessages(chatData.messages);
     setPendingMessages(undefined);
     setToolCallForPermission(undefined);
@@ -284,6 +201,10 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
       ) {
         setSelectedModel(chatData.metadata.model);
       }
+    }
+
+    if (chatData.metadata) {
+      onChatUploaded(chatData.metadata)
     }
 
     // // Show warning for non-image files
@@ -325,9 +246,30 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     }
   };
 
+  const handleAutoFill = async () => {
+    const { userMessage, prompt_tokens, completion_tokens, cost } = await getAutoFillUserMessage(
+      messages,
+      {
+        model: selectedModel,
+        openRouterApiKey: openRouterKey,
+        chatContextOpts
+      }
+    )
+    setCost((prev) => prev + cost);
+    setTokensUp((prev) => prev + prompt_tokens);
+    setTokensDown((prev) => prev + completion_tokens);
+    if (!userMessage) {
+      console.error("Failed to get autofill message.");
+      return;
+    }
+    handleSendMessage(userMessage);
+  }
+
+  const [scrollToBottomEnabled, setScrollToBottomEnabled] = useState(false);
+
+
   const messagesForUi = useMemo(() => {
     const m = [...(pendingMessages ? pendingMessages : messages)];
-    console.log("--- m xxxx", [...m]);
     let ret: ORMessage[] = [];
     const introMessage: ORMessage = {
       role: "assistant",
@@ -352,39 +294,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
         ret.push(userPromptChoicesMessage);
       }
     } else {
-      let lastMessage = m[m.length - 1];
-
-      // check for ```python exec in the final message
-      if (
-        lastMessage.role === "assistant" &&
-        typeof lastMessage.content === "string"
-      ) {
-        const ind1 = lastMessage.content.indexOf("```python exec");
-        if (ind1 >= 0) {
-          const ind2 = lastMessage.content.indexOf(
-            "```",
-            ind1 + "```python exec".length
-          );
-          if (ind2 >= 0) {
-            const code = lastMessage.content.substring(
-              ind1 + "```python exec".length,
-              ind2
-            );
-            const codeBase64 = btoa(code);
-            const runButton = `[Run Code](?runCode=${codeBase64})`;
-            lastMessage = {
-              ...lastMessage,
-              content:
-                lastMessage.content.substring(0, ind2 + 3) +
-                "\n" +
-                runButton +
-                "\n" +
-                lastMessage.content.substring(ind2 + 3),
-            };
-            ret[ret.length - 1] = lastMessage;
-          }
-        }
-      }
+      const lastMessage = m[m.length - 1];
 
       // check for suggested prompts in assistant message
       if (
@@ -416,7 +326,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
       if (lastMessage.role === "system") {
         const userPromptChoicesMessage: ORMessage = {
           role: "assistant",
-          content: `[Proceed](?userPrompt=proceed)`,
+          content: `[Continue](?userPrompt=continue)`,
         };
         ret.push(userPromptChoicesMessage);
       }
@@ -450,6 +360,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     >
       <MessageList
         messages={messagesForUi}
+        scrollToBottomEnabled={scrollToBottomEnabled}
         toolCallForPermission={toolCallForPermission}
         onSetToolCallApproval={(toolCall, approved) => {
           approvedToolCalls.current.push({ toolCall, approved });
@@ -458,9 +369,6 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
           if (link.startsWith("?userPrompt=")) {
             const userPrompt = decodeURIComponent(link.substring(12));
             handleSendMessage(userPrompt);
-          } else if (link.startsWith("?runCode=")) {
-            const code = atob(link.substring(9));
-            handleRunCode(code);
           } else {
             console.warn("Unknown special link clicked:", link);
           }
@@ -527,6 +435,8 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
         onDeleteChat={handleDeleteChat}
         onUploadChat={handleUploadChat}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onAutoFill={handleAutoFill}
+        metadataForChatJson={metadataForChatJson}
       />
       <OpenRouterKeyDialog
         open={isSettingsOpen}
@@ -538,7 +448,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
   );
 };
 
-function parseSuggestedPrompts(content: string): {
+export function parseSuggestedPrompts(content: string): {
   suggestedPrompts: string[] | undefined;
   newContent: string;
 } {
@@ -567,9 +477,8 @@ function parseSuggestedPrompts(content: string): {
 
     if (prompts.length > 0) {
       suggestedPrompts = prompts;
-      newContent =
-        content.slice(0, startIndex) + content.slice(endIndex + endTag.length);
     }
+    newContent = content.slice(0, startIndex) + content.slice(endIndex + endTag.length);
   }
 
   return { suggestedPrompts, newContent };
