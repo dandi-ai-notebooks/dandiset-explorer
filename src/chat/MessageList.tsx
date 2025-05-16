@@ -42,13 +42,6 @@ const MessageList: FunctionComponent<MessageListProps> = ({
       }}
     >
       {messages
-        .filter((m) => {
-          // this is a hack to hide system messages that are just describing what the user is seeing
-          if (m.role === "system" && (m.content as string).startsWith(":")) {
-            return false;
-          }
-          return true;
-        })
         .map((msg, index) => (
           <Box key={index}>
             <Message

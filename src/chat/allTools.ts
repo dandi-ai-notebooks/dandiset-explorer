@@ -4,13 +4,15 @@ import * as getDandisetAssets from "./tools/getDandisetAssets";
 import * as getNwbFileInfo from "./tools/getNwbFileInfo";
 
 import { ORFunctionDescription } from "./openRouterTypes";
+import { JupyterConnectivityState } from "../jupyter/JupyterConnectivity";
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface ToolExecutionContext {}
+export interface ToolExecutionContext {
+  jupyterConnectivity: JupyterConnectivityState
+}
 
 interface NCTool {
   toolFunction: ORFunctionDescription;
-  execute: (params: any, o?: ToolExecutionContext) => Promise<string>;
+  execute: (params: any, o: ToolExecutionContext) => Promise<string>;
   getDetailedDescription: () => Promise<string>;
   requiresPermission: boolean;
 }

@@ -59,7 +59,7 @@ const MessageBubble: FunctionComponent<
 
         return {
           padding: theme.spacing(1, 2),
-          maxWidth: "70%",
+          maxWidth: message.role === "system" ? "95%" : "70%",
           backgroundColor: getBackgroundColor(),
           color: isUser
             ? theme.palette.primary.contrastText
@@ -246,6 +246,30 @@ const Message: FunctionComponent<MessageProps> = ({
     if (Array.isArray(message.content)) {
       return message.content.map((part, index) => {
         if (part.type === "text") {
+          if (part.text.startsWith("STDOUT: ")) {
+            const txtLines = part.text.slice("STDOUT: ".length).split("\n");
+            return (
+              <Box key={index} sx={{ mb: 1 }}>
+                {txtLines.map((line, i) => (
+                  <Typography key={i} variant="body2" fontFamily="monospace">
+                    {line}
+                  </Typography>
+                ))}
+              </Box>
+            )
+          }
+          else if (part.text.startsWith("STDERR: ")) {
+            const txtLines = part.text.slice("STDERR: ".length).split("\n");
+            return (
+              <Box key={index} sx={{ mb: 1 }}>
+                {txtLines.map((line, i) => (
+                  <Typography key={i} variant="body2" color="error.main" fontFamily="monospace">
+                    {line}
+                  </Typography>
+                ))}
+              </Box>
+            )
+          }
           return <MarkdownContent key={index} content={part.text} onSpecialLinkClicked={onSpecialLinkClicked} />;
         }
         if (part.type === "image_url") {

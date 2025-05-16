@@ -10,7 +10,7 @@ interface ChatPageProps {
   height: number;
 }
 
-const maxWidth = 1200;
+const maxWidth = 1500;
 
 function ChatPage({ width, height }: ChatPageProps) {
   const [searchParams] = useSearchParams();

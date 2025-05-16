@@ -7,6 +7,7 @@ import {
 } from "./openRouterTypes";
 import { getAllTools } from "./allTools";
 import { AVAILABLE_MODELS } from "./availableModels";
+import { JupyterConnectivityState } from "../jupyter/JupyterConnectivity";
 
 const constructInitialSystemMessages = async (o: {
   dandisetId: string;
@@ -28,6 +29,26 @@ You should be concise in your answers, and only include the most relevant inform
 
 In the next system message, you will find meta information about this Dandiset.
 
+# Execution of code
+
+After your response, if there is Python code that you wish to execute as part of the chat, or if the user has requested that you run some code, use the following format
+
+\`\`\`python exec
+# Your Python code here
+\`\`\`
+
+The user will then have the option to run it, and the output will be displayed in the chat, including any matplotlib plots that were generated using plt.show().
+
+When providing code to execute make sure that the script is self-contained.
+
+Only provide one "python exec" code block per response message so it is clear what the user is being asked to run.
+
+Since Python variables are not carried over between code blocks, each runnable "python exec" block should produce some output (print or plot). Otherwise it will just be a do-nothing operation.
+
+If the user says something like "execute this" or "run this", they mean that they want you to provide one of these self-contained exec scripts in the chat.
+
+# Suggested follow-up prompts
+
 When you respond, if you think it's appropriate, you may end your response with suggested follow-up prompts for the user to consider. Use the following format:
 
 <suggested-prompts>
@@ -42,9 +63,25 @@ Second suggested prompt
 
 The number of suggestions should be at most 3. If you have thoroughly answered the user's question, you may not need to include any suggestions.
 
+Frame the prompts from the perspective of the user, such as "Tell me more about ..."
+
+If you have provided code in your response, you may want to suggest that the user run the code, in which case you would follow up with a code to execute block.
+However, remember that the script to execute must be self-contained.
+
+# Notes
+
 If the user wants to know about the dandiset in an open-ended way, you will guide the user through the following via follow-up suggestions:
 * First provide an overview of the Dandiset based on the title, description, and other meta information.
-* Then, if the user is interested, show what files are available in the Dandiset.
+* Then suggest "Show some of files in this Dandiset"
+* Then suggest "Show how to load one of these files in Python"
+
+If the user wants to load an NWB file, you should first use the get_nwbfile_info tool to get the usage script for the file.
+You should not provide this usage script to the user - this is meant for you to understand how to load it.
+Then you can choose how to communicate the information to the user as relevant.
+
+Do not make the same tool call more than once. For example, if you call get_nwbfile_info, you should not call it again for the same chat. You already have that information.
+
+When you are setting the figsize in matplotlib, as a rule of thumb, use a width of 10.
 
 Do not provide information about other dandisets on DANDI.
 
@@ -102,6 +139,7 @@ export const sendChatMessage = async (
   messages: ORMessage[],
   model: string,
   o: {
+    jupyterConnectivity: JupyterConnectivityState;
     chatContextOpts: any,
     onPendingMessages?: (messages: ORMessage[]) => void;
     askPermissionToRunTool: (toolCall: ORToolCall) => Promise<boolean>;
@@ -200,7 +238,9 @@ export const sendChatMessage = async (
       for (const tc of toolCalls) {
         const okayToRun = await o.askPermissionToRunTool(tc);
         if (okayToRun) {
-          const toolResult = await handleToolCall(tc);
+          const toolResult = await handleToolCall(tc, {
+            jupyterConnectivity: o.jupyterConnectivity,
+          });
           const toolMessage: ORMessage = {
             role: "tool",
             content: toolResult,
@@ -270,7 +310,7 @@ export const sendChatMessage = async (
     // For regular messages, just add the assistant's response
     const assistantMessage: ORMessage = {
       role: "assistant",
-      content: message.content || "",
+      content: message.content || "[NO CONTENT]",
       name: undefined, // Optional name property
     };
     updatedMessages.push(assistantMessage);
@@ -417,7 +457,10 @@ const fetchCompletion = async (
 }
 
 const handleToolCall = async (
-  toolCall: ORToolCall
+  toolCall: ORToolCall,
+  o: {
+    jupyterConnectivity: JupyterConnectivityState;
+  }
 ): Promise<string> => {
   if (toolCall.type !== "function") {
     throw new Error(`Unsupported tool call type: ${toolCall.type}`);
@@ -435,7 +478,9 @@ const handleToolCall = async (
 
   try {
     const args = JSON.parse(argsString);
-    return await executor(args);
+    return await executor(args, {
+      jupyterConnectivity: o.jupyterConnectivity
+    });
   } catch (error) {
     console.error(`Error executing tool ${name}:`, error);
     throw error;
