@@ -512,17 +512,35 @@ export const fetchCompletion = async (
     };
   }
 
-  const response = await fetch(
-    "https://dandiset-explorer-api.vercel.app/api/completion",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(o.openRouterKey ? { "x-openrouter-key": o.openRouterKey } : {}),
-      },
-      body: JSON.stringify(request),
-    }
-  );
+  let response;
+  if (o.openRouterKey) {
+    // directly hit the OpenRouter API
+    const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+    response = await fetch(
+      OPENROUTER_API_URL,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${o.openRouterKey}`,
+        },
+        body: JSON.stringify(request),
+      }
+    );
+  }
+  else {
+    response = await fetch(
+      "https://dandiset-explorer-api.vercel.app/api/completion",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(o.openRouterKey ? { "x-openrouter-key": o.openRouterKey } : {}), // leave this as is in case we want to always route through the api
+        },
+        body: JSON.stringify(request),
+      }
+    );
+  }
 
   if (!response.ok) {
     throw new Error(`OpenRouter API error: ${response.statusText}`);
