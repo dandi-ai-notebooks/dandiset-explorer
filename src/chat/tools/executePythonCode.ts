@@ -105,8 +105,10 @@ export const execute = async (
     );
     let newMessage: ORMessage | undefined = undefined
     if (imageItems.length > 0) {
+      // Unfortunately, some models (gpt-4o) do not allow image urls for assistant messages, so we need the role to be user in this case
+      const role = o.imageUrlsNeedToBeUser ? "user" : "assistant";
       newMessage = {
-        role: "assistant",
+        role,
         content: imageItems.map((item) => ({
           type: "image_url",
           image_url: {

@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { AVAILABLE_MODELS } from "./availableModels";
-import { parseSuggestedPrompts } from "./ChatInterface";
-import { ORMessage, ORRequest } from "./openRouterTypes";
+import { ORMessage, ORRequest, ORToolCall } from "./openRouterTypes";
 import { fetchCompletion } from "./sendChatMessage";
 
 const getAutoFillUserMessage = async (
@@ -9,50 +8,125 @@ const getAutoFillUserMessage = async (
   o: {
     model: string;
     openRouterApiKey?: string;
-    chatContextOpts: any
+    chatContextOpts: any;
   }
 ) => {
   const systemMessage: ORMessage = {
     role: "system",
     content: getSystemMessage({
-        dandisetId: o.chatContextOpts.dandisetId,
-        dandisetVersion: o.chatContextOpts.dandisetVersion,
+      dandisetId: o.chatContextOpts.dandisetId,
+      dandisetVersion: o.chatContextOpts.dandisetVersion,
     }),
   } as ORMessage;
-  const userMessage = {
-    role: "user",
-    content: "Now please respond with what the user should say next",
-  } as ORMessage;
-  let allMessages = [systemMessage, ...messages, userMessage];
+  let allMessages = [systemMessage, ...messages];
 
   // important: in order to simulate what info a human would see;
   // we are going to remove all the tool messages, except for when the name is "execute_python_code"
-  // remove all the assistant messages that have no content (e.g, tool calls)
+  // remove all the assistant messages that have no content (e.g, tool calls) except for when the name of the tool is "execute_python_code"
   allMessages = allMessages.filter((m) => {
     if (m.role === "tool") {
-      if (m.name !== "execute_python_code") {
-        return false;
+      // get the tool call corresponding to this tool
+      let toolCall: ORToolCall | undefined = undefined;
+      for (const msg of messages) {
+        if (msg.role === "assistant" && "tool_calls" in msg && msg.tool_calls) {
+          const x = msg.tool_calls.find((tc) => tc.id === m.tool_call_id);
+          if (x) {
+            toolCall = x;
+            break;
+          }
+        }
       }
+      if (toolCall && toolCall.function.name === "execute_python_code") {
+        return true;
+      }
+      return false;
     } else if (m.role === "assistant") {
-      if (!m.content) {
-        return false;
+      if (!m.content && "tool_calls" in m) {
+        if (m.tool_calls[0].function.name !== "execute_python_code") {
+          return false;
+        }
       }
     }
     return true;
   });
 
-  // we don't want to provide the suggestions
+  // Before we swap user/assistant messages, we need to move tool calls to content.
+  // This is important, because user messages should not have tool calls.
+  // But we want to show the code that gets executed.
   allMessages = allMessages.map((m) => {
-    if (typeof m.content === "string") {
-      const { newContent } = parseSuggestedPrompts(m.content);
+    if (m.role === "assistant") {
+      if ("tool_calls" in m) {
+        const contentSections: string[] = [];
+        for (const tool_call of m.tool_calls) {
+          if (tool_call.function.name === "execute_python_code") {
+            const args = JSON.parse(tool_call.function.arguments);
+            contentSections.push(`${args.code}`);
+          } else {
+            contentSections.push(`Tool call: ${tool_call.function.name}`);
+          }
+        }
+        return {
+          role: "assistant",
+          content: contentSections.join("\n\n"),
+        } as ORMessage;
+      }
+    }
+    return m;
+  });
+
+  // We also need to move tool messages to assistant messages.
+  allMessages = allMessages.map((m) => {
+    if (m.role === "tool") {
+      return {
+        role: "assistant",
+        content: m.content,
+      };
+    }
+    return m;
+  });
+
+  // map assistant to user and user to assistant
+  allMessages = allMessages.map((m) => {
+    if (m.role === "assistant") {
       return {
         ...m,
-        content: newContent,
-      };
+        role: "user",
+      } as ORMessage;
+    } else if (m.role === "user") {
+      return {
+        ...m,
+        role: "assistant",
+      } as ORMessage;
     } else {
       return m;
     }
   });
+
+  // unfortunately, some models only allow image urls in user messages
+  if (o.model.startsWith("openai/")) {
+    allMessages = allMessages.map((m) => {
+      if (m.role === "assistant" && m.content) {
+        let hasImageUrl = false;
+        if (typeof m.content === "string") {
+          hasImageUrl = false;
+        } else {
+          for (const part of m.content) {
+            if (part.type === "image_url") {
+              hasImageUrl = true;
+              break;
+            }
+          }
+        }
+        if (hasImageUrl) {
+          return {
+            ...m,
+            role: "user",
+          } as ORMessage;
+        }
+      }
+      return m;
+    });
+  }
 
   console.info(allMessages);
 
@@ -115,21 +189,8 @@ const getAutoFillUserMessage = async (
     };
   }
 
-  const ind1 = message.content.indexOf("<prompt>");
-  const ind2 = message.content.indexOf("</prompt>");
-  if (ind1 === -1 || ind2 === -1) {
-    return {
-      userMessage: "Problem with auto fill (cannot parse prompt)",
-      prompt_tokens,
-      completion_tokens,
-      cost,
-    };
-  }
-
   return {
-    userMessage: message.content
-      .substring(ind1 + "<prompt>".length, ind2)
-      .trim(),
+    userMessage: message.content,
     prompt_tokens,
     completion_tokens,
     cost,
@@ -137,30 +198,30 @@ const getAutoFillUserMessage = async (
 };
 
 const getSystemMessage = (o: {
-    dandisetId: string;
-    dandisetVersion: string;
+  dandisetId: string;
+  dandisetVersion: string;
 }) => `
-You are a scientist who is trying to understand Dandiset ${o.dandisetId} version ${o.dandisetVersion} from the DANDI archive.
+You are a scientist who is trying to understand Dandiset ${o.dandisetId} version ${o.dandisetVersion} from the DANDI archive. Your goal is to learn about the data inside, how to get started loading and visualizing the data in Python, and learn how you can begin to analyze the data.
 
-You are interacting with an AI assistant. You are the user. The assistant is the other AI who is helping you.
+You are interacting with a user who is an expert about the Dandiset.
 
-Your goal is to learn about the dandiset and how to load and visualize data from it.
+You should prompt the user for information about the dandiset and how to load the data.
 
-You should respond with a prompt that the user should say next in order to accomplish this goal in the following format
+The first prompt should be "Tell me about this dandiset.".
 
-<prompt>
-...
-</prompt>
+Each time the user responds, you should evaluate whether their response sufficiently answers your question. You should pay careful attention to any plots that were provided to determine if there are any problems or mistakes. Then either ask for clarification or correction, or move on to the next question. Do not get stuck on one question for too long. In your response, before asking the next question, it would be helpful to summarize any plots that were provided so that you can make it clear that you are interpreting the data correctly.
 
-IMPORTANT: Only respond in this format. No other text should be included.
+Once you feel like you understand the Dandiset sufficiently, you should respond with "Thank you, that is all I need to know.".
 
-The first prompt should be "Tell me about this dandiset".
+Here's what you'll want to learn about specifically:
 
-Then you'll want to follow up with questions if things are unclear.
+You'll want to learn what the Dandiset is about.
 
 You'll want to learn what files are in the dandiset.
 
-You'll also want to learn how to load the data from an NWB file (start with one).
+You'll want to learn how to load the data from an NWB file (start with one).
+
+You should cover all the types of data in the NWB files, where possible and reasonable.
 
 For the NWB file you'll want to learn about what types of data are in the file.
 
@@ -170,25 +231,22 @@ If there are errors with the code execution you'll want to follow up about that.
 
 If there are issues with the visualizations, you'll want to follow up about that as well.
 
-Overall, you need to be able to understand the Dandiset and how to get started analyzing the data.
-
-If the assistant is providing code but not actually executing it, then you can request that it execute the code.
-
-Your prompts should be relatively short.
-You are not the one trying to debug things, you are the one trying to learn about the data and the assistant will debug and troubleshoot.
-As the user, your job is to point out problems and seek to learn.
-You should not be providing blocks of code.
-
-Stick to what is available in the Dandiset. You don't have access to the internet or any other resources.
+Stick to what is available in the Dandiset. The user does not have access to the internet or any other resources.
 
 If you understand well enough one NWB file you may want to move on to another one.
 
-If you understand the Dandiset and its data well enough, then you can end the conversation by saying "Thank you, that is all I need to know".
+The user is instructed: "If the assistant asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer."
 
-The assistant is instructed: "If the user asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer."
+Be clear and concise in your prompts, not overly verbose.
+
+You can see things like "Load X from Y" or "Plot ..." or "Show how to ...".
+
+It's important that the user provides actual Python code for loading and visualizing the data. If they provide pseudocode or a description of the code, ask them to provide actual code.
+
+It's important that the user actually executes scripts and shows the resulting visualizations.
 `;
 
-// Note: the phrase "If the user asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer."
+// Note: the phrase "asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer."
 // is checked on the backend.
 
 export default getAutoFillUserMessage;

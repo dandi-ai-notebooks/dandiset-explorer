@@ -452,6 +452,7 @@ export function parseSuggestedPrompts(content: string): {
   suggestedPrompts: string[] | undefined;
   newContent: string;
 } {
+  console.log('--- parseSuggestedPrompts ---', content);
   // 1. Initialize variables
   let suggestedPrompts: string[] | undefined = undefined;
   let newContent = content;

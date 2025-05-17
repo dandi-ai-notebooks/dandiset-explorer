@@ -12,10 +12,11 @@ import { JupyterConnectivityState } from "../jupyter/JupyterConnectivity";
 const constructInitialSystemMessages = async (o: {
   dandisetId: string;
   dandisetVersion: string;
+  doSuggestedPrompts?: boolean;
 }) => {
   let message1 = ``;
 
-  // Note: the phrase "If the user asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer."
+  // Note: the phrase "asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer."
   // is checked on the backend.
   message1 += `You are a helpful technical assistant and an expert in DANDI, NWB (Neurodata Without Borders), and Python programming.
 
@@ -48,7 +49,10 @@ You should not repeat the code that you executed in your response since the user
 However, for other tool calls, you should assume that the content of the tool call is NOT visible to the user.
 
 When you refer to images that were generated, you should refer to them as "the image above" or "the plot above" or "the figure above".
+`;
 
+  if (o.doSuggestedPrompts) {
+    message1 += `
 # Suggested follow-up prompts
 
 When you respond, if you think it's appropriate, you may end your response with suggested follow-up prompts for the user to consider. Use the following format:
@@ -67,12 +71,16 @@ The number of suggestions should be at most 3. If you have thoroughly answered t
 
 Frame the prompts from the perspective of the user, such as "Tell me more about ..."
 
-# Notes
-
 If the user wants to know about the dandiset in an open-ended way, you will guide the user through the following via follow-up suggestions:
 * First provide an overview of the Dandiset based on the title, description, and other meta information.
 * Then suggest "Show some of files in this Dandiset"
 * Then suggest "Show how to load one of these files in Python"
+`;
+  }
+
+  message1 += `
+
+# Notes
 
 If the user wants to load an NWB file, you should first use the get_nwbfile_info tool to get the usage script for the file.
 You should not provide this usage script to the user - this is meant for you to understand how to load it.
@@ -97,7 +105,10 @@ The following specialized tools are available.
     message1 += "\n\n";
   }
 
-  const dandisetMetadata = await fetchDandisetMetadata({dandisetId: o.dandisetId, dandisetVersion: o.dandisetVersion});
+  const dandisetMetadata = await fetchDandisetMetadata({
+    dandisetId: o.dandisetId,
+    dandisetVersion: o.dandisetVersion,
+  });
   const message2 = `## Dandiset Metadata for ${o.dandisetId} version ${o.dandisetVersion}
 ${dandisetMetadata}
 `;
@@ -114,8 +125,8 @@ const fetchDandisetMetadata = async (o: {
     {
       method: "GET",
       headers: {
-        "accept": "application/json"
-      }
+        accept: "application/json",
+      },
     }
   );
   if (!response.ok) {
@@ -125,7 +136,7 @@ const fetchDandisetMetadata = async (o: {
   }
   const data = await response.json();
   return JSON.stringify(data);
-}
+};
 
 export type ChatMessageResponse = {
   messages: ORMessage[];
@@ -141,14 +152,17 @@ export const sendChatMessage = async (
   model: string,
   o: {
     jupyterConnectivity: JupyterConnectivityState;
-    chatContextOpts: any,
+    chatContextOpts: any;
     onPendingMessages?: (messages: ORMessage[]) => void;
     askPermissionToRunTool: (toolCall: ORToolCall) => Promise<boolean>;
     openRouterKey?: string;
-  },
+  }
 ): Promise<ChatMessageResponse> => {
   // Create system message with tool descriptions
-  const msgs = await constructInitialSystemMessages({dandisetId: o.chatContextOpts.dandisetId, dandisetVersion: o.chatContextOpts.dandisetVersion});
+  const msgs = await constructInitialSystemMessages({
+    dandisetId: o.chatContextOpts.dandisetId,
+    dandisetVersion: o.chatContextOpts.dandisetVersion,
+  });
   const initialSystemMessages: ORMessage[] = msgs.map((m) => ({
     role: "system",
     content: m,
@@ -202,8 +216,10 @@ export const sendChatMessage = async (
     return { messages };
   }
 
-  const prompt_tokens = !result.cacheHit ? (result.usage?.prompt_tokens || 0) : 0;
-  const completion_tokens = !result.cacheHit ? (result.usage?.completion_tokens || 0) : 0;
+  const prompt_tokens = !result.cacheHit ? result.usage?.prompt_tokens || 0 : 0;
+  const completion_tokens = !result.cacheHit
+    ? result.usage?.completion_tokens || 0
+    : 0;
 
   const a = AVAILABLE_MODELS.find((m) => m.model === model);
   const cost =
@@ -240,7 +256,8 @@ export const sendChatMessage = async (
         const okayToRun = await o.askPermissionToRunTool(tc);
         if (okayToRun) {
           const toolResult = await handleToolCall(tc, {
-            jupyterConnectivity: o.jupyterConnectivity
+            jupyterConnectivity: o.jupyterConnectivity,
+            imageUrlsNeedToBeUser: model.startsWith("openai/")
           });
           const toolMessage: ORMessage = {
             role: "tool",
@@ -333,15 +350,15 @@ export const sendChatMessage = async (
 // Initialize IndexedDB
 const initDB = async (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('CompletionCache', 1);
+    const request = indexedDB.open("CompletionCache", 1);
 
     request.onerror = () => reject(request.error);
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains('responses')) {
-        const store = db.createObjectStore('responses', { keyPath: 'key' });
-        store.createIndex('timestamp', 'timestamp', { unique: false });
+      if (!db.objectStoreNames.contains("responses")) {
+        const store = db.createObjectStore("responses", { keyPath: "key" });
+        store.createIndex("timestamp", "timestamp", { unique: false });
       }
     };
 
@@ -350,13 +367,11 @@ const initDB = async (): Promise<IDBDatabase> => {
 };
 
 // Get cached response
-const completionCacheGet = async (
-  key: string,
-): Promise<ORResponse | null> => {
+const completionCacheGet = async (key: string): Promise<ORResponse | null> => {
   const db = await initDB();
   return new Promise((resolve) => {
-    const transaction = db.transaction('responses', 'readonly');
-    const store = transaction.objectStore('responses');
+    const transaction = db.transaction("responses", "readonly");
+    const store = transaction.objectStore("responses");
     const request = store.get(key);
 
     request.onsuccess = () => {
@@ -368,7 +383,7 @@ const completionCacheGet = async (
     };
 
     request.onerror = () => {
-      console.error('Error reading from cache:', request.error);
+      console.error("Error reading from cache:", request.error);
       resolve(null);
     };
   });
@@ -377,18 +392,18 @@ const completionCacheGet = async (
 // Store response in cache
 const completionCacheSet = async (
   key: string,
-  value: ORResponse,
+  value: ORResponse
 ): Promise<void> => {
   const db = await initDB();
-  const transaction = db.transaction('responses', 'readwrite');
-  const store = transaction.objectStore('responses');
+  const transaction = db.transaction("responses", "readwrite");
+  const store = transaction.objectStore("responses");
 
   // Add new entry
   await new Promise<void>((resolve, reject) => {
     const request = store.put({
       key,
       value,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
@@ -399,7 +414,7 @@ const completionCacheSet = async (
   countRequest.onsuccess = () => {
     if (countRequest.result > 300) {
       // Get all entries sorted by timestamp
-      const index = store.index('timestamp');
+      const index = store.index("timestamp");
       const cursorRequest = index.openCursor();
       let deleteCount = countRequest.result - 300;
 
@@ -419,16 +434,16 @@ const completionCacheSet = async (
 const computeHash = async (input: string): Promise<string> => {
   const encoder = new TextEncoder();
   const data = encoder.encode(input);
-  const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+  const hashBuffer = await crypto.subtle.digest("SHA-1", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
+  return hashArray.map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };
 
 export const fetchCompletion = async (
   request: ORRequest,
   o: {
     openRouterKey?: string;
-  },
+  }
 ): Promise<ORResponse & { cacheHit?: boolean }> => {
   const cacheKey = await computeHash(JSON.stringify(request));
   const cachedResponse = await completionCacheGet(cacheKey);
@@ -439,14 +454,17 @@ export const fetchCompletion = async (
     };
   }
 
-  const response = await fetch('https://dandiset-explorer-api.vercel.app/api/completion', {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(o.openRouterKey ? { "x-openrouter-key": o.openRouterKey } : {}),
-    },
-    body: JSON.stringify(request),
-  });
+  const response = await fetch(
+    "https://dandiset-explorer-api.vercel.app/api/completion",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(o.openRouterKey ? { "x-openrouter-key": o.openRouterKey } : {}),
+      },
+      body: JSON.stringify(request),
+    }
+  );
 
   if (!response.ok) {
     throw new Error(`OpenRouter API error: ${response.statusText}`);
@@ -467,17 +485,18 @@ export const fetchCompletion = async (
   // Cache the response
   await completionCacheSet(cacheKey, result);
 
-  return result
-}
+  return result;
+};
 
 const handleToolCall = async (
   toolCall: ORToolCall,
   o: {
     jupyterConnectivity: JupyterConnectivityState;
+    imageUrlsNeedToBeUser: boolean;
   }
 ): Promise<{
-  result: string,
-  newMessages?: ORMessage[]
+  result: string;
+  newMessages?: ORMessage[];
 }> => {
   if (toolCall.type !== "function") {
     throw new Error(`Unsupported tool call type: ${toolCall.type}`);
@@ -486,7 +505,7 @@ const handleToolCall = async (
   const { name, arguments: argsString } = toolCall.function;
   const tools = await getAllTools();
   const executor = tools.find(
-    (tool) => tool.toolFunction.name === name,
+    (tool) => tool.toolFunction.name === name
   )?.execute;
 
   if (!executor) {
@@ -496,7 +515,8 @@ const handleToolCall = async (
   try {
     const args = JSON.parse(argsString);
     return await executor(args, {
-      jupyterConnectivity: o.jupyterConnectivity
+      jupyterConnectivity: o.jupyterConnectivity,
+      imageUrlsNeedToBeUser: o.imageUrlsNeedToBeUser,
     });
   } catch (error) {
     console.error(`Error executing tool ${name}:`, error);

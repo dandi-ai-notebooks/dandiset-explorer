@@ -7,7 +7,8 @@ import { ORFunctionDescription, ORMessage } from "./openRouterTypes";
 import { JupyterConnectivityState } from "../jupyter/JupyterConnectivity";
 
 export interface ToolExecutionContext {
-  jupyterConnectivity: JupyterConnectivityState
+  jupyterConnectivity: JupyterConnectivityState;
+  imageUrlsNeedToBeUser: boolean;
 }
 
 interface NCTool {

@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'First message must be a system message' }, { status: 400 });
     }
     const firstMessageContent = firstMessage.content;
-    if (!firstMessageContent.includes("If the user asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer.")) {
+    if (!firstMessageContent.includes("asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer.")) {
       return NextResponse.json({ error: 'First message must contain the correct system message' }, { status: 400 });
     }
 
