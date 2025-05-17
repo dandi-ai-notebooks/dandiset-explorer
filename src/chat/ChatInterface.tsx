@@ -295,7 +295,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     }
 
     const tipIcon = "💡";
-    ret += `\n\n${tipIcon}You may want to try out the "Auto ask" button below to ask a suggested question.`;
+    ret += `\n\n${tipIcon} You may want to try out the "Auto ask" button below to ask a suggested question.`;
     return ret;
   }, [topBubbleContent, jupyterConnectivity, selectedModel, openRouterKey]);
 
