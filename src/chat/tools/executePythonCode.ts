@@ -18,6 +18,10 @@ export const toolFunction: ORFunctionDescription = {
         type: "string",
         description: "The Python code to execute.",
       },
+      reasoning: {
+        type: "string",
+        description: "The reasoning behind the code execution.",
+      }
     },
     required: ["code"],
   },
@@ -143,6 +147,8 @@ export const getDetailedDescription = async () => {
   return `Execute Python code that outputs produces text and image output.
 
 The Python code should be self-contained.
+
+A description of the reason that you are executing the code should be provided in the "reasoning" field.
 
 The code will be executed in a Jupyter kernel. The output will be returned as a string.
 Any images produced will be returned in the next message.

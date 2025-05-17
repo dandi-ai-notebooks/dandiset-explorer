@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Box, Paper, Typography, IconButton, Button } from "@mui/material";
 import UndoIcon from "@mui/icons-material/Undo";
-import { FunctionComponent, PropsWithChildren, useState } from "react";
+import React, { FunctionComponent, PropsWithChildren, useState } from "react";
 import MarkdownContent from "../components/MarkdownContent";
 import { ORMessage } from "./openRouterTypes";
 
@@ -123,24 +123,6 @@ const Message: FunctionComponent<MessageProps> = ({
       "tool_calls" in message &&
       message.tool_calls
     ) {
-      const toolCall1 = message.tool_calls[0];
-      if (toolCall1.type === "function") {
-        try {
-          if (toolCall1.function.name === "retrieve_docs") {
-            const urls = JSON.parse(toolCall1.function.arguments).urls;
-            return (
-              <div>
-                Retrieving docs: {urls.map((url: string) => (
-                  (url.split("/").pop() || url).replace(".html", "")
-                  )).join(", ")}
-              </div>
-            )
-          }
-        }
-        catch (e) {
-          console.error("Error parsing tool call arguments:", e);
-        }
-      }
       return (
         <Box>
           <Box
@@ -171,10 +153,15 @@ const Message: FunctionComponent<MessageProps> = ({
             message.tool_calls.map((toolCall) => (
               <Box key={toolCall.id} sx={{ mb: 1 }}>
                 {toolCall.function.name === "execute_python_code" ? (
-                  <MarkdownContent
-                    content={`\`\`\`python\n${JSON.parse(toolCall.function.arguments).code}\n\`\`\``}
-                    onSpecialLinkClicked={onSpecialLinkClicked}
-                  />
+                  <>
+                    <MarkdownContent
+                      content={JSON.parse(toolCall.function.arguments).reasoning}
+                    />
+                    <MarkdownContent
+                      content={`\`\`\`python\n${JSON.parse(toolCall.function.arguments).code}\n\`\`\``}
+                      onSpecialLinkClicked={onSpecialLinkClicked}
+                    />
+                  </>
                 ) : (
                   <Typography
                     variant="body2"
@@ -192,27 +179,17 @@ const Message: FunctionComponent<MessageProps> = ({
 
     // Handle tool results
     if (message.role === "tool" && "tool_call_id" in message) {
-      let formattedMessageContent = formatMessageContent(message.content);
+      let formattedMessageContent: string | React.ReactNode = formatMessageContent(message.content);
       let showAsMarkdown = true;
       const toolName = findToolName(message.tool_call_id);
-      if (toolName === "retrieve_docs") {
-        try {
-          const a = JSON.parse(message.content);
-          let newFormattedMessageContent = "";
-          for (const doc of a) {
-            newFormattedMessageContent += `${doc.url}\n\n`;
-            newFormattedMessageContent += doc.content;
-
-          }
-          formattedMessageContent = newFormattedMessageContent;
-          showAsMarkdown = false;
-        }
-        catch (e) {
-          console.error("Error parsing tool call arguments:", e);
-        }
+      if (toolName === "execute_python_code") {
+        showAsMarkdown = false;
+        formattedMessageContent = <>{(formattedMessageContent as string).split("\n").map((line: string) => (
+          <div>{line}</div>
+        ))}
+        </>
       }
-      return (
-        <Box>
+      return <>
           <Box
             sx={{
               display: "flex",
@@ -237,17 +214,13 @@ const Message: FunctionComponent<MessageProps> = ({
           {toolResultExpanded && (
             <Box>
               {showAsMarkdown ? <MarkdownContent
-                content={formattedMessageContent}
+                content={formattedMessageContent as string}
                 onSpecialLinkClicked={onSpecialLinkClicked}
-              /> : (
-                <pre>
-                  {formattedMessageContent}
-                </pre>
-              )}
+              /> : formattedMessageContent}
             </Box>
           )}
-        </Box>
-      );
+          </>
+
     }
 
     // Handle regular text content

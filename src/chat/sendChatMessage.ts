@@ -96,7 +96,7 @@ In general you should choose to execute code whenever it seems like that could w
 
 If you would like to execute code, use the execute_python_code tool.
 
-When providing code to execute make sure that the script is self-contained.
+IMPORTANT: When providing code to execute make sure that the script is fully self-contained. You can not pick up where you left off with previous code execution. Each time you execute code, it uses a new kernel.
 
 If the user says something like "execute such and such" or "run such and such" or "plot such and such" etc, they mean that they want you make a tool call to execute_python_code.
 

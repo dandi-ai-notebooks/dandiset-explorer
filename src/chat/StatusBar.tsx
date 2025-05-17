@@ -133,6 +133,7 @@ const StatusBar: FunctionComponent<{
               color: "primary.main",
             },
           }}
+          disabled={isLoading}
         >
           <span style={{ fontSize: '0.7rem', fontWeight: 'bold' }}>Auto ask</span>
         </IconButton>

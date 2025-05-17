@@ -27,7 +27,8 @@ type ChatInterfaceProps = {
 };
 
 const recommendedModels = [
-  "google/gemini-2.5-pro-preview"
+  "openai/gpt-4.1"
+  // "google/gemini-2.5-pro-preview"
 ]
 
 const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
@@ -235,23 +236,35 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     }
   };
 
+  const [isAutoFillLoading, setIsAutoFillLoading] = useState(false);
   const handleAutoFill = async () => {
-    const { userMessage, prompt_tokens, completion_tokens, cost } = await getAutoFillUserMessage(
-      messages,
-      {
-        model: selectedModel,
-        openRouterApiKey: openRouterKey,
-        chatContextOpts
-      }
-    )
-    setCost((prev) => prev + cost);
-    setTokensUp((prev) => prev + prompt_tokens);
-    setTokensDown((prev) => prev + completion_tokens);
-    if (!userMessage) {
-      console.error("Failed to get autofill message.");
+    if (isAutoFillLoading) {
       return;
     }
-    handleSendMessage(userMessage);
+    if (isLoading) {
+      return;
+    }
+    setIsAutoFillLoading(true);
+    try {
+      const { userMessage, prompt_tokens, completion_tokens, cost } = await getAutoFillUserMessage(
+        messages,
+        {
+          model: selectedModel,
+          openRouterApiKey: openRouterKey,
+          chatContextOpts
+        }
+      )
+      setCost((prev) => prev + cost);
+      setTokensUp((prev) => prev + prompt_tokens);
+      setTokensDown((prev) => prev + completion_tokens);
+      if (!userMessage) {
+        console.error("Failed to get autofill message.");
+        return;
+      }
+      handleSendMessage(userMessage);
+    } finally {
+      setIsAutoFillLoading(false);
+    }
   }
 
   const [scrollToBottomEnabled, setScrollToBottomEnabled] = useState(false);
@@ -462,7 +475,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
         tokensUp={tokensUp}
         tokensDown={tokensDown}
         totalCost={cost}
-        isLoading={isLoading}
+        isLoading={isLoading || isAutoFillLoading}
         messages={messages}
         onDeleteChat={handleDeleteChat}
         onUploadChat={handleUploadChat}

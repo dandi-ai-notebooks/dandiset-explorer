@@ -219,7 +219,7 @@ You'll want to learn what the Dandiset is about.
 
 You'll want to learn what files are in the dandiset.
 
-You'll want to learn how to load the data from an NWB file (start with one).
+You'll want to learn how to load and visualize the data from an NWB file (start with one).
 
 You should cover all the types of data in the NWB files, where possible and reasonable.
 
@@ -237,7 +237,7 @@ If you understand well enough one NWB file you may want to move on to another on
 
 The user is instructed: "If the assistant asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer."
 
-Be clear and concise in your prompts, not overly verbose.
+Be clear and concise in your prompts, not overly verbose. Be scientifically formal (no emojis, etc).
 
 You can see things like "Load X from Y" or "Plot ..." or "Show how to ...".
 
