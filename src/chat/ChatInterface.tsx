@@ -258,6 +258,11 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
 
   const topBubbleContent2 = useMemo(() => {
     let ret = topBubbleContent;
+
+    // Warn that this is an experimental app.
+    const warning = "⚠️";
+    ret += `\n\n${warning} This is an experimental app and is under construction. Please report any issues to the Neurosift team.`;
+
     if (!jupyterConnectivity.jupyterServerIsAvailable) {
       const warning = "⚠️";
       ret += `\n\n${warning} You are not connected to a Jupyter server. I will not be able to execute any code or get information about NWB files. Use the JUPYTER CONFIG tab to connect to a Jupyter server.`;
