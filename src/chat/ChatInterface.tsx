@@ -26,6 +26,10 @@ type ChatInterfaceProps = {
   onChatUploaded: (metadata: any) => void;
 };
 
+const recommendedModels = [
+  "google/gemini-2.5-pro-preview"
+]
+
 const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
   width,
   height,
@@ -252,13 +256,48 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
 
   const [scrollToBottomEnabled, setScrollToBottomEnabled] = useState(false);
 
+  const topBubbleContent2 = useMemo(() => {
+    let ret = topBubbleContent;
+    if (!jupyterConnectivity.jupyterServerIsAvailable) {
+      const warning = "⚠️";
+      ret += `\n\n${warning} You are not connected to a Jupyter server. I will not be able to execute any code or get information about NWB files. Use the JUPYTER CONFIG tab to connect to a Jupyter server.`;
+    }
+    else {
+      const checkmark = "✅";
+      ret += `\n\n${checkmark} You are connected to a Jupyter server.`;
+    }
+    if (!recommendedModels.includes(selectedModel)) {
+      const warning = "⚠️";
+      if (cheapModels.includes(selectedModel)) {
+        if (openRouterKey) {
+          ret += `\n\n${warning} You are using ${selectedModel}. The recommended model is ${recommendedModels[0]}.`;
+        }
+        else {
+          ret += `\n\n${warning} You are using ${selectedModel}, which is free for limited use. However, the recommended model is ${recommendedModels[0]} which requires an OpenRouter key. See the settings bar at the bottom of the chat.`;
+        }
+      }
+      else {
+        if (openRouterKey) {
+          ret += `\n\n${warning} You are using ${selectedModel}. The recommended model is ${recommendedModels[0]}.`;
+        }
+        else {
+          ret += `\n\n${warning} You are using ${selectedModel}. To use this model, you need to provide your own OpenRouter key. Click the gear icon to enter it.`;
+        }
+      }
+    } else {
+      const checkmark = "✅";
+      ret += `\n\n${checkmark} You are using the recommended model: ${selectedModel}.`;
+    }
+    return ret;
+  }, [topBubbleContent, jupyterConnectivity, selectedModel]);
+
 
   const messagesForUi = useMemo(() => {
     const m = [...(pendingMessages ? pendingMessages : messages)];
     let ret: ORMessage[] = [];
     const introMessage: ORMessage = {
       role: "assistant",
-      content: topBubbleContent,
+      content: topBubbleContent2,
     };
     ret.push(introMessage);
 
@@ -331,7 +370,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     });
 
     return ret;
-  }, [messages, pendingMessages, topBubbleContent, initialUserPromptChoices]);
+  }, [messages, pendingMessages, topBubbleContent2, initialUserPromptChoices]);
 
   return (
     <Box

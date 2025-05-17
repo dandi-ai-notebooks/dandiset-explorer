@@ -17,7 +17,7 @@ function ChatPage({ width, height }: ChatPageProps) {
   const [searchParams] = useSearchParams();
   const dandisetId = searchParams.get("dandisetId") || "001174";
   const dandisetVersion =
-    searchParams.get("dandisetVersion") || "0.250331.2218";
+    searchParams.get("dandisetVersion") || "draft";
 
   const chatContextOpts = useMemo(
     () => ({
@@ -36,7 +36,7 @@ function ChatPage({ width, height }: ChatPageProps) {
   }, [dandisetId, dandisetVersion]);
 
   const initialPromptUserChoices = useMemo(() => {
-    return ["Tell me about this dandiset"];
+    return ["Tell me about this dandiset."];
   }, []);
 
   const [selectedTab, setSelectedTab] = useState(0);
@@ -58,6 +58,11 @@ function ChatPage({ width, height }: ChatPageProps) {
       );
       setSelectedTab(0);
     }, []);
+
+
+  const topBubbleContent = useMemo(() => {
+    return `Ask me questions about Dandiset ${dandisetId} (${dandisetVersion})`
+  }, [dandisetId, dandisetVersion]);
 
   return (
     <JupyterConnectivityProvider mode="jupyter-server">
@@ -96,7 +101,7 @@ function ChatPage({ width, height }: ChatPageProps) {
         <ChatInterface
           width={Math.min(width, maxWidth)}
           height={height}
-          topBubbleContent={`Ask me questions about Dandiset ${dandisetId} version ${dandisetVersion}`}
+          topBubbleContent={topBubbleContent}
           initialUserPromptChoices={initialPromptUserChoices}
           chatContextOpts={chatContextOpts}
           metadataForChatJson={metadataForChatJson}
