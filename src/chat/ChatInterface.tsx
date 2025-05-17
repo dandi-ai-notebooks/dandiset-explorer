@@ -293,8 +293,11 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
       const checkmark = "✅";
       ret += `\n\n${checkmark} You are using the recommended model: ${selectedModel}.`;
     }
+
+    const tipIcon = "💡";
+    ret += `\n\n${tipIcon}You may want to try out the "Auto ask" button below to ask a suggested question.`;
     return ret;
-  }, [topBubbleContent, jupyterConnectivity, selectedModel]);
+  }, [topBubbleContent, jupyterConnectivity, selectedModel, openRouterKey]);
 
 
   const messagesForUi = useMemo(() => {
