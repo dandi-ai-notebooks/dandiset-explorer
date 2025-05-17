@@ -101,14 +101,20 @@ const Message: FunctionComponent<MessageProps> = ({
     return "unknown tool";
   };
 
-  // expand by default if there is one tool with name execute_python_code
-  let defaultExpanded = false;
+  // expand tool calls by default if there is one tool with name execute_python_code
+  let defaultToolCallsExpanded = false;
   if (message.role === "assistant" && "tool_calls" in message && message.tool_calls) {
-    defaultExpanded = message.tool_calls.some((tc) => tc.function.name === "execute_python_code");
+    defaultToolCallsExpanded = message.tool_calls.some((tc) => tc.function.name === "execute_python_code");
   }
+  const [toolCallsExpanded, setToolCallsExpanded] = useState(defaultToolCallsExpanded);
 
-  const [toolCallsExpanded, setToolCallsExpanded] = useState(defaultExpanded);
-  const [toolResultExpanded, setToolResultExpanded] = useState(false);
+  // expand tool results by default if the tool name is execute_python_code
+  let defaultToolResultExpanded = false;
+  if (message.role === "tool" && "tool_call_id" in message) {
+    const toolName = findToolName(message.tool_call_id);
+    defaultToolResultExpanded = toolName === "execute_python_code";
+  }
+  const [toolResultExpanded, setToolResultExpanded] = useState(defaultToolResultExpanded);
 
   const renderContent = () => {
     // Handle tool calls (assistant requesting to use a tool)

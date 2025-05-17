@@ -87,6 +87,12 @@ export const execute = async (
               content: (msg.content.data as any)["image/png"] as string,
             });
           }
+          else if ("text/plain" in (msg.content.data as any)) {
+            outputItems.push({
+              type: "stdout",
+              content: stripAnsi((msg.content.data as any)["text/plain"] as string),
+            });
+          }
         }
       }
     });

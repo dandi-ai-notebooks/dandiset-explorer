@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   ORMessage,
+  ORNonStreamingChoice,
   ORRequest,
   ORResponse,
   ORToolCall,
@@ -29,6 +30,63 @@ You will respond with markdown formatted text.
 You should be concise in your answers, and only include the most relevant information, unless told otherwise.
 
 In the next system message, you will find meta information about this Dandiset.
+
+You have the ability to execute Python code using the execute_python_code tool (see below).
+
+To get a list of assets/files for the dandiset, the most straightforward way is to use the get_dandiset_assets tool (see below). However,
+if the user is interested in how to do this from Python, you can also provide them with a code snippet (or execute it if you wish) using the following method:
+
+To get a list of assets/files for the dandiset use the execute_python_code tool and use the dandi Python API. Here's an example:
+
+\`\`\`python
+from dandi.dandiapi import DandiAPIClient
+
+client = DandiAPIClient()
+dandiset = client.get_dandiset("${o.dandisetId}", "${o.dandisetVersion}")
+
+# List some assets in the Dandiset
+assets = dandiset.get_assets()
+print("\nFirst 10 assets:")
+for asset in islice(assets, 10):
+    print(f"- {asset.path} ({asset.identifier})")
+\`\`\`
+
+Some dandisets may have a very large number of files, so it is good practice to limit the number of files you are
+showing.
+
+You'll want to always print the asset IDs so that you can use those with the get_nwbfile_info tool.
+
+For the asset object you can get the size of the file in bytes via \`asset.size\`.
+
+You can also search for assets by glob, which can be useful if you are looking for specific files. Here's an example:
+\`\`\`python
+assets = dandiset.get_assets_by_glob("sub-*/ses-*/**/*.nwb")
+\`\`\`
+
+To load a remote NWB file using pynwb, you can use the following code:
+
+\`\`\`python
+import h5py
+import pynwb
+import remfile
+
+...
+
+remote_file = remfile.File(asset.download_url)
+h5_file = h5py.File(remote_file)
+io = pynwb.NWBHDF5IO(file=h5_file)
+nwb = io.read()
+\`\`\`
+
+To understand the contents of a particular NWB file (know what data is inside) and learn how to load it, use the
+get_nwbfile_info tool (described below). The output of that will contain a usage script. That script is not meant to
+be shown to the user, but is meant to guide you in knowing how to construct scripts and know what data are available.
+Even though the URL is hard-coded in the usage script, you can use the asset.download_url to get the URL in a
+more transparent way.
+
+If the user asks to load or download a file, you should use the above method.
+You should not just give them the URL because the file will usually be too large to conveniently download.
+Be sure to use the get_nwbfile_info tool to get the usage script for the file before you provide the script to load it.
 
 # Execution of code
 
@@ -100,9 +158,9 @@ The following specialized tools are available.
 
   const tools = await getAllTools();
   for (const a of tools) {
-    message1 += `## Tool: ${a.toolFunction.name}`;
-    message1 += await a.getDetailedDescription();
-    message1 += "\n\n";
+    message1 += `## Tool: ${a.toolFunction.name}\n`;
+    message1 += await a.getDetailedDescription() + "\n";
+    message1 += "\n";
   }
 
   const dandisetMetadata = await fetchDandisetMetadata({
@@ -482,8 +540,16 @@ export const fetchCompletion = async (
     throw new Error("No choices in response (length 0)");
   }
 
-  // Cache the response
-  await completionCacheSet(cacheKey, result);
+  // don't cache empty responses
+  const choice = result.choices[0] as ORNonStreamingChoice;
+  if (!choice.message.content && !choice.message.tool_calls) {
+    console.warn(choice);
+    console.warn("Got empty response");
+  }
+  else {
+    // Cache the response if not empty
+    await completionCacheSet(cacheKey, result);
+  }
 
   return result;
 };

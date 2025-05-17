@@ -134,7 +134,7 @@ const StatusBar: FunctionComponent<{
             },
           }}
         >
-          <span style={{ fontSize: '0.7rem', fontWeight: 'bold' }}>Auto</span>
+          <span style={{ fontSize: '0.7rem', fontWeight: 'bold' }}>Auto ask</span>
         </IconButton>
       </Box>
       <Box
