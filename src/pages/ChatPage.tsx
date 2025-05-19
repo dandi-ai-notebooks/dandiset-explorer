@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Box, Tab, Tabs } from "@mui/material";
 import ChatInterface from "../chat/ChatInterface";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useCallback, useMemo, useState } from "react";
 import { JupyterConnectivityProvider } from "../jupyter/JupyterConnectivityProvider";
 import JupyterConfigurationView from "../jupyter/JupyterConfigurationView";
@@ -18,14 +18,18 @@ function ChatPage({ width, height }: ChatPageProps) {
   const dandisetId = searchParams.get("dandisetId") || "001174";
   const dandisetVersion =
     searchParams.get("dandisetVersion") || "draft";
+  const chatId = searchParams.get("chatId") || undefined;
 
-  const chatContextOpts = useMemo(
-    () => ({
-      dandisetId,
-      dandisetVersion,
-    }),
-    [dandisetId, dandisetVersion]
-  );
+  const navigate = useNavigate();
+  const handleSetChatId = useCallback((chatId: string | undefined) => {
+    const newSearchParams = new URLSearchParams(searchParams);
+    if (chatId) {
+      newSearchParams.set("chatId", chatId);
+    } else {
+      newSearchParams.delete("chatId");
+    }
+    navigate(`${window.location.pathname}?${newSearchParams.toString()}`);
+  }, [navigate, searchParams]);
 
   const metadataForChatJson = useMemo(() => {
     return {
@@ -103,9 +107,12 @@ function ChatPage({ width, height }: ChatPageProps) {
           height={height}
           topBubbleContent={topBubbleContent}
           initialUserPromptChoices={initialPromptUserChoices}
-          chatContextOpts={chatContextOpts}
           metadataForChatJson={metadataForChatJson}
           onChatUploaded={handleChatUploaded}
+          dandisetId={dandisetId}
+          dandisetVersion={dandisetVersion}
+          chatId={chatId}
+          setChatId={handleSetChatId}
         />
       </Box>
       <Box

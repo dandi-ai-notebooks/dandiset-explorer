@@ -8,14 +8,15 @@ const getAutoFillUserMessage = async (
   o: {
     model: string;
     openRouterApiKey?: string;
-    chatContextOpts: any;
+    dandisetId: string;
+    dandisetVersion: string;
   }
 ) => {
   const systemMessage: ORMessage = {
     role: "system",
     content: getSystemMessage({
-      dandisetId: o.chatContextOpts.dandisetId,
-      dandisetVersion: o.chatContextOpts.dandisetVersion,
+      dandisetId: o.dandisetId,
+      dandisetVersion: o.dandisetVersion,
     }),
   } as ORMessage;
   let allMessages = [systemMessage, ...messages];
@@ -235,7 +236,7 @@ Stick to what is available in the Dandiset. The user does not have access to the
 
 If you understand well enough one NWB file you may want to move on to another one.
 
-The user is instructed: "If the assistant asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer."
+The user is instructed: "If the assistant asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer"
 
 Be clear and concise in your prompts, not overly verbose. Be scientifically formal (no emojis, etc).
 
@@ -248,7 +249,7 @@ It's important that the user actually executes scripts and shows the resulting v
 IMPORTANT: your role is to comment on the users response and to ask the questions. You do not provide any answers or assistance.
 `;
 
-// Note: the phrase "asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer."
+// Note: the phrase "asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer"
 // is checked on the backend.
 
 export default getAutoFillUserMessage;

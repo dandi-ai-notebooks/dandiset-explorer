@@ -30,10 +30,18 @@ export type ChatAction =
       dandisetVersion: string;
     }
   | {
+    type: "load_chat";
+    dandisetId: string;
+    dandisetVersion: string;
+    chat: Chat;
+    chatKey?: string;
+  }
+  | {
     type: "set_chat_key";
     chatKey: string;
     chatId: string;
-  } | {
+  }
+  | {
       type: "add_message";
       message: ORMessage;
       metadata: {
@@ -118,6 +126,16 @@ export const chatReducer = (
         dandisetId: action.dandisetId,
         dandisetVersion: action.dandisetVersion,
       })
+    }
+    case "load_chat": {
+      return {
+        chat: {
+            ...action.chat
+        },
+        pendingMessages: undefined,
+        currentModel: modelFromChat(action.chat) || "openai/gpt-4.1-mini",
+        chatKey: action.chatKey
+      };
     }
     case "set_chat_key": {
       return {
@@ -333,3 +351,12 @@ export const loadChat = async (a: {
     return null;
   }
 };
+
+const modelFromChat = (chat: Chat): string | undefined => {
+  const metadata = chat.messageMetadata;
+  if (metadata.length === 0) {
+    return undefined;
+  }
+  const lastMetadata = metadata[metadata.length - 1];
+  return lastMetadata.model;
+}

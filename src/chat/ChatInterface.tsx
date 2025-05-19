@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Box, CircularProgress, Stack } from "@mui/material";
-import { FunctionComponent, useMemo, useReducer, useRef, useState } from "react";
+import { FunctionComponent, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useJupyterConnectivity } from "../jupyter/JupyterConnectivity";
 import { getAllTools } from "./allTools";
-import { chatReducer, createChatId, initialChatState, saveChat } from "./Chat";
+import { chatReducer, createChatId, initialChatState, loadChat, saveChat } from "./Chat";
+import { loadChatKeyInfo, saveChatKeyInfo } from "./chatKeyStorage";
 import getAutoFillUserMessage from "./getAutoFillUserMessage";
 import MessageInput from "./MessageInput";
 import MessageList from "./MessageList";
@@ -21,9 +22,12 @@ type ChatInterfaceProps = {
   height: number;
   topBubbleContent: string;
   initialUserPromptChoices?: string[];
-  chatContextOpts: any;
   metadataForChatJson?: Record<string, any>;
   onChatUploaded: (metadata: any) => void;
+  dandisetId: string;
+  dandisetVersion: string;
+  chatId?: string;
+  setChatId: (chatId: string | undefined) => void;
 };
 
 const recommendedModels = [
@@ -36,12 +40,15 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
   height,
   topBubbleContent,
   initialUserPromptChoices,
-  chatContextOpts,
-  metadataForChatJson
+  metadataForChatJson,
+  dandisetId,
+  dandisetVersion,
+  chatId,
+  setChatId,
 }) => {
   const [chatState, chatStateDispatch] = useReducer(chatReducer, initialChatState({
-    dandisetId: chatContextOpts.dandisetId,
-    dandisetVersion: chatContextOpts.dandisetVersion,
+    dandisetId,
+    dandisetVersion
   }));
 
   const [isLoading, setIsLoading] = useState(false);
@@ -53,6 +60,60 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
   >([]);
 
   const jupyterConnectivity = useJupyterConnectivity();
+
+  const loadedInitialChat = useRef(false);
+  useEffect(() => {
+    if (loadedInitialChat.current) {
+      return;
+    }
+    if (chatId !== chatState.chat.chatId) {
+      if (chatId) {
+        // Check if we have a stored key for this chat
+        const storedInfo = loadChatKeyInfo(chatId);
+
+        loadChat({
+          chatId,
+          dandisetId,
+          dandisetVersion
+        }).then((chat) => {
+          if (chat) {
+            const chatKey = storedInfo?.dandisetId === dandisetId &&
+                          storedInfo?.dandisetVersion === dandisetVersion ?
+                          storedInfo.chatKey : undefined;
+            chatStateDispatch({
+              type: "load_chat",
+              chat,
+              dandisetId,
+              dandisetVersion,
+              chatKey
+            })
+          }
+        }).catch((error) => {
+          console.error("Failed to load chat:", error);
+        });
+      } else {
+        chatStateDispatch({
+          type: "reset_chat",
+          dandisetId,
+          dandisetVersion
+        });
+        setChatId(undefined);
+      }
+    }
+    loadedInitialChat.current = true;
+  }, [chatId, chatState.chat.chatId, dandisetId, dandisetVersion, setChatId]);
+
+  // Store chat key when it's set
+  useEffect(() => {
+    if (chatState.chatKey && chatState.chat.chatId) {
+      saveChatKeyInfo({
+        chatId: chatState.chat.chatId,
+        chatKey: chatState.chatKey,
+        dandisetId,
+        dandisetVersion
+      });
+    }
+  }, [chatState.chatKey, chatState.chat.chatId, dandisetId, dandisetVersion]);
 
   const handleSendMessage = async (content: string) => {
     const userMessage: ORMessage = {
@@ -79,7 +140,8 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
         chatState.currentModel,
         {
           jupyterConnectivity,
-          chatContextOpts,
+          dandisetId,
+          dandisetVersion,
           onPendingMessages: (mm: ORMessage[]) => {
             chatStateDispatch({
               type: "set_pending_messages",
@@ -152,6 +214,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
           chatKey: chatKey,
           chatId: chatId,
         });
+        setChatId(chatId);
       }
       saveChat({
         ...chatState.chat,
@@ -166,7 +229,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     }
   };
 
-  const handleDeleteChat = () => {
+  const handleClearChat = () => {
     const confirmed = window.confirm(
       "Are you sure you want to clear the entire chat?"
     );
@@ -174,9 +237,10 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
 
     chatStateDispatch({
       type: "reset_chat",
-      dandisetId: chatContextOpts.dandisetId,
-      dandisetVersion: chatContextOpts.dandisetVersion,
+      dandisetId,
+      dandisetVersion
     });
+    setChatId(undefined);
     setToolCallForPermission(undefined);
     approvedToolCalls.current = [];
   };
@@ -212,7 +276,8 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
         {
           model: chatState.currentModel,
           openRouterApiKey: openRouterKey,
-          chatContextOpts
+          dandisetId,
+          dandisetVersion,
         }
       )
       chatStateDispatch({
@@ -239,6 +304,8 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     // Warn that this is an experimental app.
     const warning = "⚠️";
     ret += `\n\n${warning} This is an experimental app and is under construction. Please report any issues to the Neurosift team.`;
+
+    ret += `\n\n${warning} All chats are saved and may be visible to other users.`;
 
     if (!jupyterConnectivity.jupyterServerIsAvailable) {
       const warning = "⚠️";
@@ -448,7 +515,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
         totalCost={chatState.chat.estimatedCost}
         isLoading={isLoading || isAutoFillLoading}
         messages={chatState.chat.messages}
-        onDeleteChat={handleDeleteChat}
+        onClearChat={handleClearChat}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onAutoFill={handleAutoFill}
         metadataForChatJson={metadataForChatJson}

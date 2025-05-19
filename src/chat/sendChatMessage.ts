@@ -17,7 +17,7 @@ const constructInitialSystemMessages = async (o: {
 }) => {
   let message1 = ``;
 
-  // Note: the phrase "asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer."
+  // Note: the phrase "asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer"
   // is checked on the backend.
   message1 += `You are a helpful technical assistant and an expert in DANDI, NWB (Neurodata Without Borders), and Python programming.
 
@@ -211,7 +211,8 @@ export const sendChatMessage = async (
   model: string,
   o: {
     jupyterConnectivity: JupyterConnectivityState;
-    chatContextOpts: any;
+    dandisetId: string;
+    dandisetVersion: string;
     onPendingMessages?: (messages: ORMessage[]) => void;
     askPermissionToRunTool: (toolCall: ORToolCall) => Promise<boolean>;
     openRouterKey?: string;
@@ -219,8 +220,8 @@ export const sendChatMessage = async (
 ): Promise<ChatMessageResponse> => {
   // Create system message with tool descriptions
   const msgs = await constructInitialSystemMessages({
-    dandisetId: o.chatContextOpts.dandisetId,
-    dandisetVersion: o.chatContextOpts.dandisetVersion,
+    dandisetId: o.dandisetId,
+    dandisetVersion: o.dandisetVersion,
   });
   const initialSystemMessages: ORMessage[] = msgs.map((m) => ({
     role: "system",

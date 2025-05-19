@@ -23,7 +23,7 @@ const StatusBar: FunctionComponent<{
   totalCost?: number;
   isLoading?: boolean;
   messages: ORMessage[];
-  onDeleteChat?: () => void;
+  onClearChat?: () => void;
   onUploadChat?: (chatData: any) => void;
   onOpenSettings?: () => void;
   onAutoFill?: () => void;
@@ -36,7 +36,7 @@ const StatusBar: FunctionComponent<{
   totalCost = 0,
   isLoading = false,
   messages,
-  onDeleteChat,
+  onClearChat,
   onUploadChat,
   onOpenSettings,
   onAutoFill,
@@ -100,7 +100,7 @@ const StatusBar: FunctionComponent<{
           size="small"
           title="Clear all messages"
           disabled={isLoading || numMessages === 0}
-          onClick={onDeleteChat}
+          onClick={onClearChat}
           sx={{
             color: "text.secondary",
             "&:hover": {
