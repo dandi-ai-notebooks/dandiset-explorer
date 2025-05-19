@@ -23,7 +23,8 @@ const constructInitialSystemMessages = async (o: {
 
 You are going to help answer questions relavent about Dandiset ${o.dandisetId} version ${o.dandisetVersion}
 
-If the user asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer.
+If the user asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer and include the following annotation at the end of your response:
+<irrelevant>
 
 You will respond with markdown formatted text.
 
@@ -197,7 +198,7 @@ const fetchDandisetMetadata = async (o: {
 };
 
 export type ChatMessageResponse = {
-  messages: ORMessage[];
+  newMessages: ORMessage[];
   usage?: {
     prompt_tokens: number;
     completion_tokens: number;
@@ -227,38 +228,10 @@ export const sendChatMessage = async (
   }));
 
   const messages1 = [...messages];
-  let systemMessageForAIContext: ORMessage | null =
-    getSystemMessageForAIContext();
-  // check whether this system message is the same as the last system message
-  const systemMessages = messages1.filter((m) => m.role === "system");
-  const lastSystemMessage =
-    systemMessages.length > 0
-      ? systemMessages[systemMessages.length - 1]
-      : null;
-  if (
-    lastSystemMessage &&
-    lastSystemMessage.content === systemMessageForAIContext?.content
-  ) {
-    // if it is the same, then we don't need to add it again
-    systemMessageForAIContext = null;
-  }
-  if (systemMessageForAIContext) {
-    // if the last message is a user message, then let's put it before that, since that what the user was looking at
-    if (
-      messages1.length > 0 &&
-      messages1[messages1.length - 1].role === "user"
-    ) {
-      messages1.splice(messages1.length - 1, 0, systemMessageForAIContext);
-    }
-    // otherwise, just add it to the end
-    else {
-      messages1.push(systemMessageForAIContext);
-    }
-  }
 
   const request: ORRequest = {
     model: model,
-    messages: [...initialSystemMessages, ...messages1],
+    messages: [...initialSystemMessages, ...messages],
     stream: false,
     tools: (await getAllTools()).map((tool) => ({
       type: "function",
@@ -271,7 +244,7 @@ export const sendChatMessage = async (
   const choice = result.choices[0];
 
   if (!choice) {
-    return { messages };
+    return { newMessages: [] };
   }
 
   const prompt_tokens = !result.cacheHit ? result.usage?.prompt_tokens || 0 : 0;
@@ -289,6 +262,7 @@ export const sendChatMessage = async (
 
   // actually we do
   const updatedMessages = [...messages1];
+  const newMessages: ORMessage[] = [];
   if (o.onPendingMessages) {
     o.onPendingMessages(updatedMessages);
   }
@@ -306,6 +280,7 @@ export const sendChatMessage = async (
         tool_calls: toolCalls,
       };
       updatedMessages.push(assistantMessage);
+      newMessages.push(assistantMessage);
       if (o.onPendingMessages) {
         o.onPendingMessages(updatedMessages);
       }
@@ -323,8 +298,10 @@ export const sendChatMessage = async (
             tool_call_id: tc.id,
           };
           updatedMessages.push(toolMessage);
+          newMessages.push(toolMessage);
           if (toolResult.newMessages) {
             updatedMessages.push(...toolResult.newMessages);
+            newMessages.push(...toolResult.newMessages);
           }
           if (o.onPendingMessages) {
             o.onPendingMessages(updatedMessages);
@@ -336,6 +313,7 @@ export const sendChatMessage = async (
             tool_call_id: tc.id,
           };
           updatedMessages.push(toolMessage);
+          newMessages.push(toolMessage);
           if (o.onPendingMessages) {
             o.onPendingMessages(updatedMessages);
           }
@@ -357,7 +335,7 @@ export const sendChatMessage = async (
 
       if (!shouldMakeAnotherRequest) {
         return {
-          messages: updatedMessages,
+          newMessages,
           usage: {
             prompt_tokens,
             completion_tokens,
@@ -375,7 +353,7 @@ export const sendChatMessage = async (
         },
       });
       return {
-        messages: rr.messages,
+        newMessages: [...newMessages, ...rr.newMessages],
         usage: rr.usage
           ? {
               prompt_tokens: prompt_tokens + rr.usage.prompt_tokens,
@@ -393,10 +371,11 @@ export const sendChatMessage = async (
       name: undefined, // Optional name property
     };
     updatedMessages.push(assistantMessage);
+    newMessages.push(assistantMessage);
   }
 
   return {
-    messages: updatedMessages,
+    newMessages,
     usage: {
       prompt_tokens,
       completion_tokens,
@@ -503,7 +482,7 @@ export const fetchCompletion = async (
     openRouterKey?: string;
   }
 ): Promise<ORResponse & { cacheHit?: boolean }> => {
-  const cacheKey = await computeHash(JSON.stringify(request));
+  const cacheKey = await computeHash(JSONStringifyDeterministic(request));
   const cachedResponse = await completionCacheGet(cacheKey);
   if (cachedResponse) {
     return {
@@ -628,31 +607,18 @@ if (window.parent !== window) {
   });
 }
 
-export const getGlobalAIContext = () => globalData.aiContext;
-export const setGlobalAIContext = (aiContext: string) => {
-  globalData.aiContext = aiContext;
-};
-export const getGlobalNotebookContent = () => globalData.notebookContent;
-export const setGlobalNotebookContent = (notebookContent: string) => {
-  globalData.notebookContent = notebookContent;
-};
-
-const getSystemMessageForAIContext = (): ORMessage | null => {
-  const aiContext = getGlobalAIContext();
-  if (!aiContext) {
-    return null;
-    // return {
-    //   role: "system",
-    //   content: "There is no context available.",
-    // };
+function JSONStringifyDeterministic(value: any): string {
+  if (value && typeof value === 'object') {
+    if (Array.isArray(value)) {
+      // Arrays keep their natural order
+      return '[' + value.map(JSONStringifyDeterministic).join(',') + ']';
+    }
+    // Objects → keys sorted lexicographically
+    const keys = Object.keys(value).sort();
+    return '{' + keys.map(k =>
+      JSON.stringify(k) + ':' + JSONStringifyDeterministic(value[k])
+    ).join(',') + '}';
   }
-
-  // The leading ":" is important so we know not to show it in the chat interface
-  // (I know it's a hack)
-  const a = `:The following is information about what the user is seeing on the web application.`;
-
-  return {
-    role: "system",
-    content: a + JSON.stringify(aiContext, null, 2),
-  };
-};
+  // Primitives & null
+  return JSON.stringify(value);
+}

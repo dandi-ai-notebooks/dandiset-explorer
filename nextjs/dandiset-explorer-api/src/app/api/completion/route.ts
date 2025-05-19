@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createHash } from 'crypto';
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const cheapModels = [
   "google/gemini-2.5-flash-preview",
-  "openai/gpt-4o-mini"
+  "openai/gpt-4o-mini",
+  "openai/gpt-4.1-mini"
 ]
 
 export async function POST(request: Request) {

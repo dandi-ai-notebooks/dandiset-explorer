@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Box, CircularProgress, Stack } from "@mui/material";
-import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react";
+import { FunctionComponent, useMemo, useReducer, useRef, useState } from "react";
 import { useJupyterConnectivity } from "../jupyter/JupyterConnectivity";
 import { getAllTools } from "./allTools";
-import { AVAILABLE_MODELS } from "./availableModels";
+import { chatReducer, createChatId, initialChatState, saveChat } from "./Chat";
 import getAutoFillUserMessage from "./getAutoFillUserMessage";
 import MessageInput from "./MessageInput";
 import MessageList from "./MessageList";
@@ -14,7 +14,7 @@ import StatusBar from "./StatusBar";
 
 const MAX_CHAT_COST = 0.75;
 
-const cheapModels = ["google/gemini-2.5-flash-preview", "openai/gpt-4o-mini"];
+const cheapModels = ["google/gemini-2.5-flash-preview", "openai/gpt-4o-mini", "openai/gpt-4.1-mini"];
 
 type ChatInterfaceProps = {
   width: number;
@@ -37,26 +37,14 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
   topBubbleContent,
   initialUserPromptChoices,
   chatContextOpts,
-  metadataForChatJson,
-  onChatUploaded
+  metadataForChatJson
 }) => {
-  const [selectedModel, setSelectedModel] = useState(
-    () =>
-      localStorage.getItem("selectedModel") || "google/gemini-2.5-flash-preview"
-  );
+  const [chatState, chatStateDispatch] = useReducer(chatReducer, initialChatState({
+    dandisetId: chatContextOpts.dandisetId,
+    dandisetVersion: chatContextOpts.dandisetVersion,
+  }));
 
-  // Save model choice to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem("selectedModel", selectedModel);
-  }, [selectedModel]);
-  const [messages, setMessages] = useState<ORMessage[]>([]);
-  const [pendingMessages, setPendingMessages] = useState<
-    ORMessage[] | undefined
-  >(undefined);
   const [isLoading, setIsLoading] = useState(false);
-  const [tokensUp, setTokensUp] = useState(0);
-  const [tokensDown, setTokensDown] = useState(0);
-  const [cost, setCost] = useState(0);
   const [toolCallForPermission, setToolCallForPermission] = useState<
     ORToolCall | undefined
   >(undefined);
@@ -75,18 +63,28 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     // as soon as user has submitted something, we enable scrolling to bottom on each new message
     setScrollToBottomEnabled(true);
 
-    setMessages((prev) => [...prev, userMessage]);
+    chatStateDispatch({
+      type: "add_message",
+      message: userMessage,
+      metadata: {
+        model: chatState.currentModel,
+        timestamp: Date.now(),
+      }
+    });
     setIsLoading(true);
 
     try {
       const response = await sendChatMessage(
-        content ? [...messages, userMessage] : [...messages],
-        selectedModel,
+        [...chatState.chat.messages, userMessage],
+        chatState.currentModel,
         {
           jupyterConnectivity,
           chatContextOpts,
           onPendingMessages: (mm: ORMessage[]) => {
-            setPendingMessages(mm);
+            chatStateDispatch({
+              type: "set_pending_messages",
+              pendingMessages: mm,
+            });
           },
           askPermissionToRunTool: async (toolCall: ORToolCall) => {
             const allTools = await getAllTools();
@@ -121,15 +119,45 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
           openRouterKey,
         }
       );
-      setPendingMessages(undefined);
+      chatStateDispatch({
+        type: "set_pending_messages",
+        pendingMessages: undefined,
+      });
 
       if (response.usage) {
-        setTokensUp((prev) => prev + response.usage!.prompt_tokens);
-        setTokensDown((prev) => prev + response.usage!.completion_tokens);
-        setCost((prev) => prev + response.usage!.cost);
+        chatStateDispatch({
+          type: "increment_tokens",
+          promptTokens: response.usage.prompt_tokens,
+          completionTokens: response.usage.completion_tokens,
+          estimatedCost: response.usage.cost,
+        })
       }
 
-      setMessages(response.messages);
+      chatStateDispatch({
+        type: "add_messages",
+        messages: response.newMessages,
+        metadata: {
+          model: chatState.currentModel,
+          timestamp: Date.now(),
+        }
+      });
+      let chatKey = chatState.chatKey;
+      let chatId = chatState.chat.chatId;
+      if (!chatKey) {
+        const {chatId: chatId0, chatKey: chatKey0} = await createChatId();
+        chatKey = chatKey0;
+        chatId = chatId0;
+        chatStateDispatch({
+          type: "set_chat_key",
+          chatKey: chatKey,
+          chatId: chatId,
+        });
+      }
+      saveChat({
+        ...chatState.chat,
+        chatId: chatId,
+        messages: [...chatState.chat.messages, userMessage, ...response.newMessages],
+      }, chatKey)
     } catch (error) {
       console.error("Failed to send message:", error);
       // Could add error handling UI here
@@ -138,86 +166,19 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     }
   };
 
-  useEffect(() => {
-    // used in the settings view
-    localStorage.setItem("chatCost", cost.toString());
-  }, [cost]);
-
-  const handleUploadChat = (chatData: any) => {
-    // Validate uploaded data structure
-    if (!chatData.messages || !Array.isArray(chatData.messages)) {
-      alert("Invalid chat data: missing or invalid messages array");
-      return;
-    }
-
-    // // Handle files if present
-    // const nonImageFiles: string[] = [];
-    // if (chatData.files) {
-    //   for (const [key, value] of Object.entries(chatData.files)) {
-    //     if (typeof value === "string" && value.startsWith("base64:")) {
-    //       const base64Content = value.substring(7);
-    //       const fileExtension = key.split(".").pop()?.toLowerCase();
-
-    //       if (fileExtension === "png") {
-    //         globalOutputItems[key] = {
-    //           type: "image",
-    //           format: "png",
-    //           content: base64Content,
-    //         };
-    //       } else {
-    //         nonImageFiles.push(key);
-    //       }
-    //     }
-    //   }
-    // }
-
-    // Update chat state
-    // upon initial load, we are not going to scroll to the bottom
-    setScrollToBottomEnabled(false);
-    setMessages(chatData.messages);
-    setPendingMessages(undefined);
-    setToolCallForPermission(undefined);
-    approvedToolCalls.current = [];
-
-    // Update metadata if available
-    if (chatData.metadata) {
-      if (chatData.metadata.tokensUp) setTokensUp(chatData.metadata.tokensUp);
-      if (chatData.metadata.tokensDown)
-        setTokensDown(chatData.metadata.tokensDown);
-      if (chatData.metadata.totalCost) setCost(chatData.metadata.totalCost);
-      if (
-        chatData.metadata.model &&
-        AVAILABLE_MODELS.some((m) => m.model === chatData.metadata.model)
-      ) {
-        setSelectedModel(chatData.metadata.model);
-      }
-    }
-
-    if (chatData.metadata) {
-      onChatUploaded(chatData.metadata)
-    }
-
-    // // Show warning for non-image files
-    // if (nonImageFiles.length > 0) {
-    //   alert(
-    //     `Warning: The following files were not loaded because they are not PNG images: ${nonImageFiles.join(", ")}`,
-    //   );
-    // }
-  };
-
   const handleDeleteChat = () => {
     const confirmed = window.confirm(
-      "Are you sure you want to delete the entire chat?"
+      "Are you sure you want to clear the entire chat?"
     );
     if (!confirmed) return;
 
-    setMessages([]);
-    setPendingMessages(undefined);
+    chatStateDispatch({
+      type: "reset_chat",
+      dandisetId: chatContextOpts.dandisetId,
+      dandisetVersion: chatContextOpts.dandisetVersion,
+    });
     setToolCallForPermission(undefined);
     approvedToolCalls.current = [];
-    setTokensUp(0);
-    setTokensDown(0);
-    setCost(0);
   };
 
   const [currentPromptText, setCurrentPromptText] = useState("");
@@ -247,16 +208,19 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     setIsAutoFillLoading(true);
     try {
       const { userMessage, prompt_tokens, completion_tokens, cost } = await getAutoFillUserMessage(
-        messages,
+        chatState.chat.messages,
         {
-          model: selectedModel,
+          model: chatState.currentModel,
           openRouterApiKey: openRouterKey,
           chatContextOpts
         }
       )
-      setCost((prev) => prev + cost);
-      setTokensUp((prev) => prev + prompt_tokens);
-      setTokensDown((prev) => prev + completion_tokens);
+      chatStateDispatch({
+        type: "increment_tokens",
+        promptTokens: prompt_tokens,
+        completionTokens: completion_tokens,
+        estimatedCost: cost,
+      });
       if (!userMessage) {
         console.error("Failed to get autofill message.");
         return;
@@ -284,37 +248,37 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
       const checkmark = "✅";
       ret += `\n\n${checkmark} You are connected to a Jupyter server.`;
     }
-    if (!recommendedModels.includes(selectedModel)) {
+    if (!recommendedModels.includes(chatState.currentModel)) {
       const warning = "⚠️";
-      if (cheapModels.includes(selectedModel)) {
+      if (cheapModels.includes(chatState.currentModel)) {
         if (openRouterKey) {
-          ret += `\n\n${warning} You are using ${selectedModel}. The recommended model is ${recommendedModels[0]}.`;
+          ret += `\n\n${warning} You are using ${chatState.currentModel}. The recommended model is ${recommendedModels[0]}.`;
         }
         else {
-          ret += `\n\n${warning} You are using ${selectedModel}, which is free for limited use. However, the recommended model is ${recommendedModels[0]} which requires an OpenRouter key. See the settings bar at the bottom of the chat.`;
+          ret += `\n\n${warning} You are using ${chatState.currentModel}, which is free for limited use. However, the recommended model is ${recommendedModels[0]} which requires an OpenRouter key. See the settings bar at the bottom of the chat.`;
         }
       }
       else {
         if (openRouterKey) {
-          ret += `\n\n${warning} You are using ${selectedModel}. The recommended model is ${recommendedModels[0]}.`;
+          ret += `\n\n${warning} You are using ${chatState.currentModel}. The recommended model is ${recommendedModels[0]}.`;
         }
         else {
-          ret += `\n\n${warning} You are using ${selectedModel}. To use this model, you need to provide your own OpenRouter key. Click the gear icon to enter it.`;
+          ret += `\n\n${warning} You are using ${chatState.currentModel}. To use this model, you need to provide your own OpenRouter key. Click the gear icon to enter it.`;
         }
       }
     } else {
       const checkmark = "✅";
-      ret += `\n\n${checkmark} You are using the recommended model: ${selectedModel}.`;
+      ret += `\n\n${checkmark} You are using the recommended model: ${chatState.currentModel}.`;
     }
 
     const tipIcon = "💡";
     ret += `\n\n${tipIcon} You may want to try out the "Auto ask" button below to ask a suggested question.`;
     return ret;
-  }, [topBubbleContent, jupyterConnectivity, selectedModel, openRouterKey]);
+  }, [topBubbleContent, jupyterConnectivity, chatState.currentModel, openRouterKey]);
 
 
   const messagesForUi = useMemo(() => {
-    const m = [...(pendingMessages ? pendingMessages : messages)];
+    const m = chatState.pendingMessages ? chatState.pendingMessages : chatState.chat.messages;
     let ret: ORMessage[] = [];
     const introMessage: ORMessage = {
       role: "assistant",
@@ -391,7 +355,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     });
 
     return ret;
-  }, [messages, pendingMessages, topBubbleContent2, initialUserPromptChoices]);
+  }, [chatState, topBubbleContent2, initialUserPromptChoices]);
 
   return (
     <Box
@@ -428,11 +392,13 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
                 if (!confirmed) {
                   return;
                 }
-                const messageIndex = messages.findIndex((m) => m === msg);
+                const messageIndex = chatState.chat.messages.findIndex((m) => m === msg);
                 const index =
-                  messageIndex === -1 ? messages.length : messageIndex;
-                setMessages(messages.slice(0, index));
-                setPendingMessages(undefined);
+                  messageIndex === -1 ? chatState.chat.messages.length : messageIndex;
+                chatStateDispatch({
+                  type: "delete_message",
+                  messageIndex: index
+                })
                 setToolCallForPermission(undefined);
                 approvedToolCalls.current = [];
                 setCurrentPromptText(
@@ -443,13 +409,13 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
         }
       />
       <Stack spacing={1} sx={{ p: 1 }}>
-        {cost > MAX_CHAT_COST && (
+        {chatState.chat.estimatedCost > MAX_CHAT_COST && (
           <Box sx={{ color: "error.main", textAlign: "center", mb: 1 }}>
             Chat cost has exceeded ${MAX_CHAT_COST.toFixed(2)}. Please start a
             new chat.
           </Box>
         )}
-        {!cheapModels.includes(selectedModel) && !openRouterKey && (
+        {!cheapModels.includes(chatState.currentModel) && !openRouterKey && (
           <Box sx={{ color: "error.main", textAlign: "center", mb: 1 }}>
             To use this model you need to provide your own OpenRouter key. Click
             the gear icon to enter it.
@@ -461,8 +427,8 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
           onSendMessage={handleSendMessage}
           disabled={
             isLoading ||
-            cost > MAX_CHAT_COST ||
-            (!cheapModels.includes(selectedModel) && !openRouterKey)
+            chatState.chat.estimatedCost > MAX_CHAT_COST ||
+            (!cheapModels.includes(chatState.currentModel) && !openRouterKey)
           }
         />
         {isLoading && (
@@ -470,15 +436,19 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
         )}
       </Stack>
       <StatusBar
-        selectedModel={selectedModel}
-        onModelChange={(model) => setSelectedModel(model)}
-        tokensUp={tokensUp}
-        tokensDown={tokensDown}
-        totalCost={cost}
+        selectedModel={chatState.currentModel}
+        onModelChange={(model) => {
+          chatStateDispatch({
+            type: "set_current_model",
+            model,
+          });
+        }}
+        tokensUp={chatState.chat.promptTokens}
+        tokensDown={chatState.chat.completionTokens}
+        totalCost={chatState.chat.estimatedCost}
         isLoading={isLoading || isAutoFillLoading}
-        messages={messages}
+        messages={chatState.chat.messages}
         onDeleteChat={handleDeleteChat}
-        onUploadChat={handleUploadChat}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onAutoFill={handleAutoFill}
         metadataForChatJson={metadataForChatJson}

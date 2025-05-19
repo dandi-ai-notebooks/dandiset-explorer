@@ -29,7 +29,7 @@ const OpenRouterKeyDialog: FunctionComponent<OpenRouterKeyDialogProps> = ({
       <DialogTitle>OpenRouter API Key Settings</DialogTitle>
       <DialogContent>
         <Typography variant="body2" sx={{ mb: 2 }}>
-          To use models other than gemini-2.5-flash-preview and gpt-4o-mini, you need to provide your own OpenRouter API key.
+          To use models other than openai/gpt-4.1-mini, gpt-4o-mini, and gemini-2.5-flash-preview, you need to provide your own OpenRouter API key.
           You can get one at{' '}
           <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">
             https://openrouter.ai/keys
