@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Stack } from '@mui/material';
+import { getAllStoredChatKeys, removeChatKeyInfo } from '../chat/chatKeyStorage';
 import { Chat } from '../chat/Chat';
 
 const formatTimestamp = (timestamp: number) => {
@@ -18,10 +19,12 @@ const getUniqueModels = (chat: Chat) => {
 interface AdminChatsPageProps {
     width: number;
     height: number;
+    onChatSelect: (chatId: string) => void;
 }
 
-const AdminChatsPage = ({ width, height }: AdminChatsPageProps) => {
+const AdminChatsPage = ({ width, height, onChatSelect }: AdminChatsPageProps) => {
     const [chats, setChats] = useState<Chat[]>([]);
+    const storedChatKeys = getAllStoredChatKeys();
     const passcode = "default-chat-passcode";
 
     useEffect(() => {
@@ -61,6 +64,7 @@ const AdminChatsPage = ({ width, height }: AdminChatsPageProps) => {
                         <TableCell>Messages</TableCell>
                         <TableCell>Est. Cost</TableCell>
                         <TableCell>Models</TableCell>
+                        <TableCell>Actions</TableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
@@ -73,6 +77,54 @@ const AdminChatsPage = ({ width, height }: AdminChatsPageProps) => {
                             <TableCell>{chat.messageMetadata.length}</TableCell>
                             <TableCell>{formatCost(chat.estimatedCost)}</TableCell>
                             <TableCell>{getUniqueModels(chat)}</TableCell>
+                            <TableCell>
+                                <Stack direction="row" spacing={1}>
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() => onChatSelect(chat.chatId)}
+                                    >
+                                        Open
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        color="error"
+                                        onClick={async () => {
+                                            const confirmed = window.confirm('Are you sure you want to delete this chat?');
+                                            if (!confirmed) return;
+
+                                            const chatKey = storedChatKeys[chat.chatId]?.chatKey || "";
+                                            const response = await fetch(
+                                                `https://dandiset-explorer-api.vercel.app/api/delete_chat?chatId=${chat.chatId}&chatKey=${chatKey}&passcode=${passcode}`,
+                                                {
+                                                    method: 'DELETE'
+                                                }
+                                            );
+
+                                            if (!response.ok) {
+                                                alert('Failed to delete chat');
+                                                return;
+                                            }
+
+                                            if (storedChatKeys[chat.chatId]) {
+                                                // Remove chat key from local storage if it exists
+                                                removeChatKeyInfo(chat.chatId);
+                                            }
+
+                                            // Refresh the chats list
+                                            const fetchResponse = await fetch(
+                                                `https://dandiset-explorer-api.vercel.app/api/list_chats?passcode=${passcode}`
+                                            );
+
+                                            if (fetchResponse.ok) {
+                                                const data = await fetchResponse.json();
+                                                setChats(data.chats);
+                                            }
+                                        }}
+                                    >
+                                        Delete
+                                    </Button>
+                                </Stack>
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>

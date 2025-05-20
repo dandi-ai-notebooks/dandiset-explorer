@@ -16,7 +16,7 @@ const maxWidth = 1500;
 
 function ChatPage({ width, height }: ChatPageProps) {
   const [searchParams] = useSearchParams();
-  const dandisetId = searchParams.get("dandisetId") || "001174";
+  const dandisetId = searchParams.get("dandisetId") || "";
   const dandisetVersion =
     searchParams.get("dandisetVersion") || "draft";
   const chatId = searchParams.get("chatId") || undefined;
@@ -60,6 +60,14 @@ function ChatPage({ width, height }: ChatPageProps) {
   const topBubbleContent = useMemo(() => {
     return `Ask me about Dandiset ${dandisetId} (${dandisetVersion})`
   }, [dandisetId, dandisetVersion]);
+
+  if (!dandisetId) {
+    return (
+      <div>
+        You must provide a dandsetId in the URL.
+      </div>
+    )
+  }
 
   return (
     <JupyterConnectivityProvider mode="jupyter-server">
