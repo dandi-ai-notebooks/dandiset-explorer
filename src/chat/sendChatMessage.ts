@@ -85,7 +85,9 @@ io = pynwb.NWBHDF5IO(file=h5_file)
 nwb = io.read()
 \`\`\`
 
-To understand the contents of a particular NWB file (know what data is inside) and learn how to load it, use the get_nwbfile_info tool (described below). The output of that will contain a usage script. That script is not meant to be shown to the user, but is meant to guide you in knowing how to construct scripts and know what data are available. Even though the URL is hard-coded in the usage script, you can use the asset.download_url as above to get the URL in a more transparent way.
+However, before you do that, it's important that you first use the get_nwbfile_info tool (described below) in order to understand the contents of the NWB file and learn how to load it. The output of get_nwbfile_info will contain a usage script. That script is not meant to be shown to the user, but is meant to guide you in knowing how to construct scripts and know what data are available. Even though the URL is hard-coded in the usage script, you can use the asset.download_url as above to get the URL in a more transparent way.
+
+IMPORTANT: Do not attempt to load data from the NWB file until after you have gotten the usage info using the get_nwbfile_info tool.
 
 Do not use the get_nwbfile_info tool until you find out the paths of files in the Dandiset using the dandi api as above.
 
@@ -94,10 +96,6 @@ It's important to get the dandiset assets as shown above so you know what asset 
 If the user asks to load or download a file, you should use the above method.
 You should not just give them the URL because the file will usually be too large to conveniently download.
 Be sure to use the get_nwbfile_info tool to get the usage script for the file before you provide the script to load it.
-
-IMPORTANT: You should start all scripts with the code necessary to load the download urls for any nwb file(s) using the dandi api as shown above. Do not hard-code the url, even though that is what is shown in the usage script.
-
-IMPORTANT: Do not attempt to load data from the NWB file until after you have gotten the usage info using the get_nwbfile_info tool.
 
 # Execution of code
 

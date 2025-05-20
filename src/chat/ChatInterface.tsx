@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Box, CircularProgress, Stack } from "@mui/material";
+import { Box, Stack } from "@mui/material";
 import { FunctionComponent, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useJupyterConnectivity } from "../jupyter/JupyterConnectivity";
 import { getAllTools } from "./allTools";
