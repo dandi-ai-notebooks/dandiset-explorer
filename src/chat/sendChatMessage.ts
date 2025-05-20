@@ -153,6 +153,28 @@ Do not provide information about other dandisets on DANDI.
 
 While you should generally stick to responding to requests about the Dandiset, if the user wants to test out plotting or something simple, you may oblige.
 
+Note that it doesn't work to try to index an h5py.Dataset with a numpy array of indices.
+
+Note that you cannot do operations like np.sum over a h5py.Dataset. You need to get a numpy array using something like dataset[:]
+
+If you are going to load a subset of data, it doesn't make sense to load all of the timestamps in memory and then select a subset. Instead, you should load the timestamps for the subset of data you are interested in. So we shouldn't ever see something like \`dataset.timestamps[:]\` unless we intend to load all the timestamps.
+
+When loading data for illustration, be careful about the size of the data, since the files are hosted remotely and datasets are streamed over the network. You may want to load subsets of data. But if you do, please be sure to indicate that you are doing so, so the reader doesn't get the wrong impression about the data.
+
+When showing unit IDs or channel IDs, be sure to use the actual IDs rather than just the indices.
+
+\`plt.style.use('seaborn')\` is deprecated. If you want to use seaborn styling, use:
+\`\`\`
+import seaborn as sns
+sns.set_theme()
+\`\`\`
+
+Do not use seaborn styling for plotting images.
+
+Image masks values range from 0 to 1. If you are plotting all image masks superimposed on each other in a single figure, use a heatmap with np.max on the image masks.
+
+For raw extracellular electrophysiology data, you shouldn't try to do spike detection, spike sorting, or anything like that in the notebook because it's too computationally intensive. Getting anything useful from extracullular electrophysiology data requires a lot of processing and is not something that can be done in a notebook. Instead, you should focus on showing how to load a reasonable amount of data and how to visualize it.
+
 The following specialized tools are available.
 
 `;
