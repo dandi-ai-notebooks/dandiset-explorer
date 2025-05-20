@@ -215,6 +215,7 @@ export const sendChatMessage = async (
     dandisetVersion: string;
     onPendingMessages?: (messages: ORMessage[]) => void;
     askPermissionToRunTool: (toolCall: ORToolCall) => Promise<boolean>;
+    setToolCallForCancel: (toolCall: ORToolCall | undefined, onCancel: (() => void) | undefined) => void;
     openRouterKey?: string;
   }
 ): Promise<ChatMessageResponse> => {
@@ -286,12 +287,34 @@ export const sendChatMessage = async (
         o.onPendingMessages(updatedMessages);
       }
 
+      const tools = await getAllTools();
       for (const tc of toolCalls) {
+        const tool = tools.find(
+          (tool) => tool.toolFunction.name === tc.function.name
+        );
+        o.setToolCallForCancel(undefined, undefined);
+        if (!tool) {
+          console.error(`Tool ${tc.function.name} not found`);
+          continue;
+        }
         const okayToRun = await o.askPermissionToRunTool(tc);
         if (okayToRun) {
+          const onCancelRef: {
+            onCancel?: () => void
+          } = {
+            onCancel: undefined
+          };
+          if (tool.isCancelable) {
+            o.setToolCallForCancel(tc, () => {
+              if (onCancelRef.onCancel) {
+                onCancelRef.onCancel();
+              }
+            });
+          }
           const toolResult = await handleToolCall(tc, {
             jupyterConnectivity: o.jupyterConnectivity,
-            imageUrlsNeedToBeUser: model.startsWith("openai/")
+            imageUrlsNeedToBeUser: model.startsWith("openai/"),
+            onCancelRef
           });
           const toolMessage: ORMessage = {
             role: "tool",
@@ -321,6 +344,7 @@ export const sendChatMessage = async (
           break;
         }
       }
+      o.setToolCallForCancel(undefined, undefined);
 
       let shouldMakeAnotherRequest = false;
       // only make another request if there was a tool call that was not interact_with_app
@@ -557,6 +581,9 @@ const handleToolCall = async (
   o: {
     jupyterConnectivity: JupyterConnectivityState;
     imageUrlsNeedToBeUser: boolean;
+    onCancelRef: {
+      onCancel?: () => void;
+    }
   }
 ): Promise<{
   result: string;
@@ -581,6 +608,7 @@ const handleToolCall = async (
     return await executor(args, {
       jupyterConnectivity: o.jupyterConnectivity,
       imageUrlsNeedToBeUser: o.imageUrlsNeedToBeUser,
+      onCancelRef: o.onCancelRef
     });
   } catch (error) {
     console.error(`Error executing tool ${name}:`, error);

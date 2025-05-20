@@ -282,8 +282,6 @@ export const saveChat = async (chat: Chat, chatKey: string) => {
   const chatSquashedStringified = JSON.stringify(chatSquashed);
   const size = chatSquashedStringified.length;
 
-  console.log('--- chat metadata ---', chatMetadata);
-
   const response = await fetch(
     `https://dandiset-explorer-api.vercel.app/api/save_chat`,
     {

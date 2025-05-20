@@ -57,6 +57,10 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     { toolCall: ORToolCall; approved: boolean }[]
   >([]);
 
+  const [toolCallForCancelState, setToolCallForCancelState] = useState<
+    { toolCall: ORToolCall; onCancel: (toolCall: ORToolCall) => void } | undefined
+  >(undefined);
+
   const jupyterConnectivity = useJupyterConnectivity();
 
   const loadedInitialChat = useRef(false);
@@ -113,9 +117,11 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     }
   }, [chatState.chatKey, chatState.chat.chatId, dandisetId, dandisetVersion]);
 
-  console.log('--- chatState', chatState);
+  const [openRouterKey, setOpenRouterKey] = useState<string | undefined>(() => {
+    return localStorage.getItem("openRouterKey") || undefined;
+  });
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = useMemo(() => (async (content: string) => {
     const userMessage: ORMessage = {
       role: "user",
       content,
@@ -178,6 +184,16 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
               await new Promise((resolve) => setTimeout(resolve, 100));
             }
           },
+          setToolCallForCancel: (toolCall, onCancel) => {
+            if (toolCall && onCancel) {
+              setToolCallForCancelState({
+                toolCall,
+                onCancel,
+              });
+            } else {
+              setToolCallForCancelState(undefined);
+            }
+          },
           openRouterKey,
         }
       );
@@ -234,7 +250,16 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }), [
+    chatState,
+    chatStateDispatch,
+    jupyterConnectivity,
+    openRouterKey,
+    setChatId,
+    dandisetId,
+    dandisetVersion,
+    toolCallForPermission
+  ]);
 
   const handleClearChat = () => {
     const confirmed = window.confirm(
@@ -253,9 +278,6 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
   };
 
   const [currentPromptText, setCurrentPromptText] = useState("");
-  const [openRouterKey, setOpenRouterKey] = useState<string | undefined>(() => {
-    return localStorage.getItem("openRouterKey") || undefined;
-  });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const handleSaveOpenRouterKey = (key: string) => {
@@ -448,6 +470,8 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
         onSetToolCallApproval={(toolCall, approved) => {
           approvedToolCalls.current.push({ toolCall, approved });
         }}
+        toolCallForCancel={toolCallForCancelState?.toolCall}
+        onCancelToolCall={toolCallForCancelState?.onCancel}
         onSpecialLinkClicked={(link) => {
           if (link.startsWith("?userPrompt=")) {
             const userPrompt = decodeURIComponent(link.substring(12));
@@ -501,7 +525,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
           onSendMessage={handleSendMessage}
           disabled={
             isLoading ||
-            chatState.chat.estimatedCost > MAX_CHAT_COST ||
+            // chatState.chat.estimatedCost > MAX_CHAT_COST ||
             (!cheapModels.includes(chatState.currentModel) && !openRouterKey)
           }
         />

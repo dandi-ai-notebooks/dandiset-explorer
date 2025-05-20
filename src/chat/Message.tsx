@@ -109,11 +109,11 @@ const Message: FunctionComponent<MessageProps> = ({
   const [toolCallsExpanded, setToolCallsExpanded] = useState(defaultToolCallsExpanded);
 
   // expand tool results by default if the tool name is execute_python_code
-  let defaultToolResultExpanded = false;
-  if (message.role === "tool" && "tool_call_id" in message) {
-    const toolName = findToolName(message.tool_call_id);
-    defaultToolResultExpanded = toolName === "execute_python_code";
-  }
+  const defaultToolResultExpanded = false;
+  // if (message.role === "tool" && "tool_call_id" in message) {
+  //   const toolName = findToolName(message.tool_call_id);
+  //   defaultToolResultExpanded = toolName === "execute_python_code";
+  // }
   const [toolResultExpanded, setToolResultExpanded] = useState(defaultToolResultExpanded);
 
   const renderContent = () => {
@@ -184,7 +184,7 @@ const Message: FunctionComponent<MessageProps> = ({
       const toolName = findToolName(message.tool_call_id);
       if (toolName === "execute_python_code") {
         showAsMarkdown = false;
-        formattedMessageContent = <>{(formattedMessageContent as string).split("\n").map((line: string) => (
+        formattedMessageContent = <>{(formattedMessageContent as string).split("\\\\n").map((line: string) => (
           <div>{line}</div>
         ))}
         </>

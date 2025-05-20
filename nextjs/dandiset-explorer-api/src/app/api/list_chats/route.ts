@@ -11,24 +11,16 @@ export async function GET(
         const dandisetId = searchParams.get('dandisetId');
         const dandisetVersion = searchParams.get('dandisetVersion');
 
-        if (!dandisetId) {
-            return NextResponse.json({ error: 'Dandiset ID is required' }, { status: 400 });
-        }
-
-        if (!dandisetVersion) {
-            return NextResponse.json({ error: 'Dandiset version is required' }, { status: 400 });
-        }
-
         if (!passcode || passcode !== process.env.CHAT_PASSCODE) {
             return NextResponse.json({ error: 'Invalid passcode' }, { status: 401 });
         }
 
-        // Query MongoDB for all chats matching the dandiset ID and version
+        // Query MongoDB for chats, with optional dandiset filtering
         await connectDB();
-        const chats = await Chat.find({
-            dandisetId,
-            dandisetVersion
-        }).lean();
+        const query = dandisetId && dandisetVersion
+            ? { dandisetId, dandisetVersion }
+            : {};
+        const chats = await Chat.find(query).lean();
 
         // Transform results to remove MongoDB internals
         const transformedChats = chats.map(chat => {

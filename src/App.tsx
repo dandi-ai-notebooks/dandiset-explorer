@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import AdminChatsPage from './pages/AdminChatsPage';
 import ChatPage from './pages/ChatPage';
 
 function App() {
@@ -25,7 +26,8 @@ function App() {
     <Router>
       <div className="app">
         {/* <header style={{ height: headerHeight, display: 'flex', alignItems: 'center', padding: '0 20px', backgroundColor: '#282c34', color: 'white', fontFamily: 'Comfortaa, sans-serif' }}>
-          <h1><Link to="/dandiset-explorer/" style={{ textDecoration: 'none', color: 'inherit' }}>Dandiset Explorer</Link></h1>
+          <h1><Link to="/dandiset-explorer/" style={{ textDecoration: 'none', color: 'inherit', marginRight: '20px' }}>Dandiset Explorer</Link></h1>
+          <Link to="/dandiset-explorer/admin" style={{ textDecoration: 'none', color: 'inherit' }}>Admin</Link>
         </header> */}
 
         <Routes>
@@ -39,6 +41,15 @@ function App() {
             path="/dandiset-explorer/chat"
             element={
               <ChatPage
+                width={windowDimensions.width}
+                height={windowDimensions.height - headerHeight}
+              />
+            }
+          />
+          <Route
+            path="/dandiset-explorer/admin"
+            element={
+              <AdminChatsPage
                 width={windowDimensions.width}
                 height={windowDimensions.height - headerHeight}
               />

@@ -105,3 +105,5 @@ The response will be an array of objects of the form:
 };
 
 export const requiresPermission = false;
+
+export const isCancelable = false;

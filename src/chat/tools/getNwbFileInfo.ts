@@ -60,6 +60,18 @@ export const execute = async (
       }
     });
 
+    let finished = false;
+    let canceled = false;
+    o.onCancelRef.onCancel = () => {
+      if (finished) {
+        console.info("Not cancelling execution, already finished");
+        return;
+      }
+      console.info('Cancelling execution');
+      client.cancelExecution();
+      canceled = true;
+    }
+
     await client.initiate();
     await client.runCode(`
 try:
@@ -74,6 +86,14 @@ print(usage_script)
 `);
     await client.waitUntilIdle();
     await client.shutdown();
+
+    finished = true;
+
+    if (canceled) {
+      return {
+        result: "Execution was canceled.",
+      };
+    }
 
     return { result: outputLines.join("\n") };
   } catch (error) {
@@ -99,3 +119,5 @@ you need to tell the user that they need to install the get-nwbfile-info package
 };
 
 export const requiresPermission = false;
+
+export const isCancelable = true;

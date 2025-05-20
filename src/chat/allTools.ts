@@ -9,6 +9,9 @@ import { JupyterConnectivityState } from "../jupyter/JupyterConnectivity";
 export interface ToolExecutionContext {
   jupyterConnectivity: JupyterConnectivityState;
   imageUrlsNeedToBeUser: boolean;
+  onCancelRef: {
+    onCancel?: () => void;
+  }
 }
 
 interface NCTool {
@@ -19,6 +22,7 @@ interface NCTool {
   }>
   getDetailedDescription: () => Promise<string>;
   requiresPermission: boolean;
+  isCancelable: boolean;
 }
 
 const staticTools: NCTool[] = [getDandisetAssets, getNwbFileInfo, executePythonCode];

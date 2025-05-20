@@ -94,17 +94,37 @@ export const execute = async (
           else if ("text/plain" in (msg.content.data as any)) {
             outputItems.push({
               type: "stdout",
-              content: stripAnsi((msg.content.data as any)["text/plain"] as string),
+              content: (msg.content.data as any)["text/plain"],
             });
           }
         }
       }
     });
 
+    let finished = false;
+    let canceled = false;
+    o.onCancelRef.onCancel = () => {
+      if (finished) {
+        console.info("Not cancelling execution, already finished");
+        return;
+      }
+      console.info('Cancelling execution');
+      client.cancelExecution();
+      canceled = true;
+    }
+
     await client.initiate();
     await client.runCode(code);
     await client.waitUntilIdle();
     await client.shutdown();
+
+    if (canceled) {
+      return {
+        result: "Execution was canceled.",
+      };
+    }
+
+    finished = true;
 
     const outputText = outputItems.filter(
       (item) => item.type === "stdout" || item.type === "stderr"
@@ -158,3 +178,5 @@ Assume that relevant libraries are installed and available in the Python environ
 };
 
 export const requiresPermission = true;
+
+export const isCancelable = true;

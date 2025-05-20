@@ -137,8 +137,7 @@ function ChatPage({ width, height }: ChatPageProps) {
           dandisetId={dandisetId}
           dandisetVersion={dandisetVersion}
           onChatSelect={(chatId) => {
-            handleSetChatId(chatId);
-            setSelectedTab(0);
+            window.location.href = `?dandisetId=${dandisetId}&dandisetVersion=${dandisetVersion}&chatId=${chatId}`;
           }}
         />
       </Box>

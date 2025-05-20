@@ -9,6 +9,8 @@ type MessageListProps = {
   scrollToBottomEnabled: boolean;
   toolCallForPermission?: ORToolCall;
   onSetToolCallApproval?: (toolCall: ORToolCall, approved: boolean) => void;
+  toolCallForCancel?: ORToolCall;
+  onCancelToolCall?: (toolCall: ORToolCall) => void;
   height: number;
   onDeleteMessage?: (message: ORMessage) => void;
   onSpecialLinkClicked?: (linkText: string) => void;
@@ -19,6 +21,8 @@ const MessageList: FunctionComponent<MessageListProps> = ({
   scrollToBottomEnabled,
   toolCallForPermission,
   onSetToolCallApproval,
+  toolCallForCancel,
+  onCancelToolCall,
   height,
   onDeleteMessage,
   onSpecialLinkClicked
@@ -66,6 +70,13 @@ const MessageList: FunctionComponent<MessageListProps> = ({
           toolCallForPermission={toolCallForPermission}
           onSetToolCallApproval={onSetToolCallApproval}
         />
+      )}
+      {toolCallForCancel && onCancelToolCall && (
+        <button onClick={() => {
+          onCancelToolCall(toolCallForCancel)
+        }}>
+          Cancel Tool Call
+        </button>
       )}
       <div ref={messagesEndRef} />
     </Box>
