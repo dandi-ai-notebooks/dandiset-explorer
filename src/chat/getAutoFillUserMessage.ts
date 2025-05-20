@@ -191,7 +191,7 @@ const getAutoFillUserMessage = async (
   }
 
   return {
-    userMessage: message.content,
+    userMessage: message.content + " *", // Add a star at the end to indicate that this is AI generated (good for annotating chats and determining if they are pure AI)
     prompt_tokens,
     completion_tokens,
     cost,
