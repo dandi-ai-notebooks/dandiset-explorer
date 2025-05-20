@@ -58,7 +58,7 @@ function ChatPage({ width, height }: ChatPageProps) {
 
 
   const topBubbleContent = useMemo(() => {
-    return `Ask me about Dandiset ${dandisetId} (${dandisetVersion})`
+    return `Ask me about [Dandiset ${dandisetId} (${dandisetVersion})](https://dandiarchive.org/dandiset/${dandisetId}/${dandisetVersion})`
   }, [dandisetId, dandisetVersion]);
 
   if (!dandisetId) {

@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 import { FunctionComponent, useEffect, useRef } from "react";
 import Message from "./Message";
 import ToolApprovalMessage from "./ToolApprovalMessage";
@@ -14,6 +14,7 @@ type MessageListProps = {
   height: number;
   onDeleteMessage?: (message: ORMessage) => void;
   onSpecialLinkClicked?: (linkText: string) => void;
+  isLoading: boolean;
 };
 
 const MessageList: FunctionComponent<MessageListProps> = ({
@@ -25,7 +26,8 @@ const MessageList: FunctionComponent<MessageListProps> = ({
   onCancelToolCall,
   height,
   onDeleteMessage,
-  onSpecialLinkClicked
+  onSpecialLinkClicked,
+  isLoading
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -73,10 +75,28 @@ const MessageList: FunctionComponent<MessageListProps> = ({
       )}
       {toolCallForCancel && onCancelToolCall && (
         <button onClick={() => {
+          const ok = window.confirm(
+            "Are you sure you want to cancel this tool call?"
+          );
+          if (!ok) {
+            return;
+          }
           onCancelToolCall(toolCallForCancel)
-        }}>
+        }}
+          style={{
+            background: "gray",
+            color: "white",
+            border: "none",
+            padding: "10px",
+            borderRadius: "5px",
+            cursor: "pointer",
+          }}
+        >
           Cancel Tool Call
         </button>
+      )}
+      {isLoading && (
+        <CircularProgress size={20} sx={{ alignSelf: "center" }} />
       )}
       <div ref={messagesEndRef} />
     </Box>

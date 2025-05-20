@@ -515,6 +515,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
               }
             : undefined
         }
+        isLoading={isLoading || isAutoFillLoading}
       />
       <Stack spacing={1} sx={{ p: 1 }}>
         {chatState.chat.estimatedCost > MAX_CHAT_COST && (
@@ -539,9 +540,6 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
             (!cheapModels.includes(chatState.currentModel) && !openRouterKey)
           }
         />
-        {isLoading && (
-          <CircularProgress size={20} sx={{ alignSelf: "center" }} />
-        )}
       </Stack>
       <StatusBar
         selectedModel={chatState.currentModel}
