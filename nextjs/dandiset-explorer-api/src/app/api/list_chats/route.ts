@@ -8,13 +8,8 @@ export async function GET(
     try {
         const { searchParams } = new URL(request.url);
         const passcode = searchParams.get('passcode');
-        const chatId = searchParams.get('chatId');
         const dandisetId = searchParams.get('dandisetId');
         const dandisetVersion = searchParams.get('dandisetVersion');
-
-        if (!chatId) {
-            return NextResponse.json({ error: 'Chat ID is required' }, { status: 400 });
-        }
 
         if (!dandisetId) {
             return NextResponse.json({ error: 'Dandiset ID is required' }, { status: 400 });
@@ -28,18 +23,22 @@ export async function GET(
             return NextResponse.json({ error: 'Invalid passcode' }, { status: 401 });
         }
 
-        // Look up chat metadata in MongoDB
+        // Query MongoDB for all chats matching the dandiset ID and version
         await connectDB();
-        const chatDoc = await Chat.findOne({ chatId });
+        const chats = await Chat.find({
+            dandisetId,
+            dandisetVersion
+        }).lean();
 
-        if (!chatDoc) {
-            return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
-        }
+        // Transform results to remove MongoDB internals
+        const transformedChats = chats.map(chat => {
+            const { _id, __v, ...chatData } = chat;
+            return chatData;
+        });
 
-        const { _id, __v, ...chatData } = chatDoc.toObject();
-        return NextResponse.json(chatData);
+        return NextResponse.json({ chats: transformedChats });
     } catch (error) {
-        console.error('Error in load_chat:', error);
+        console.error('Error in list_chats:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }

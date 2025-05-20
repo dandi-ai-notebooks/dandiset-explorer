@@ -1,7 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import FileDownloadIcon from "@mui/icons-material/FileDownload";
-import FileUploadIcon from "@mui/icons-material/FileUpload";
 import SettingsIcon from "@mui/icons-material/Settings";
 import {
   Box,
@@ -11,9 +9,9 @@ import {
   MenuItem,
   Select,
 } from "@mui/material";
-import { FunctionComponent, useMemo } from "react";
-import { ORMessage } from "./openRouterTypes";
+import { FunctionComponent } from "react";
 import { AVAILABLE_MODELS } from "./availableModels";
+import { ORMessage } from "./openRouterTypes";
 
 const StatusBar: FunctionComponent<{
   selectedModel: string;
@@ -27,7 +25,6 @@ const StatusBar: FunctionComponent<{
   onUploadChat?: (chatData: any) => void;
   onOpenSettings?: () => void;
   onAutoFill?: () => void;
-  metadataForChatJson?: Record<string, any>;
 }> = ({
   selectedModel,
   onModelChange,
@@ -37,25 +34,10 @@ const StatusBar: FunctionComponent<{
   isLoading = false,
   messages,
   onClearChat,
-  onUploadChat,
   onOpenSettings,
-  onAutoFill,
-  metadataForChatJson
+  onAutoFill
 }) => {
   const numMessages = messages.length;
-
-  const chatData = useMemo(() => {
-    const chatData = {
-      timestamp: new Date().toISOString(),
-      messages: messages,
-      metadata: {
-        ...metadataForChatJson,
-        model: selectedModel,
-        messageCount: messages.length,
-      },
-    };
-    return chatData;
-  }, [messages, selectedModel, metadataForChatJson]);
 
   return (
     <Box
@@ -153,67 +135,6 @@ const StatusBar: FunctionComponent<{
           tokens
         </span>
         <span>${totalCost.toFixed(3)}</span>
-        <IconButton
-          size="small"
-          title="Download chat"
-          onClick={() => {
-            const blob = new Blob([JSON.stringify(chatData, null, 2)], {
-              type: "application/json",
-            });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `chat-${new Date().toISOString().split(".")[0].replace(/[:]/g, "-")}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          }}
-          sx={{
-            color: "text.secondary",
-            "&:hover": {
-              color: "primary.main",
-            },
-          }}
-        >
-          <FileDownloadIcon fontSize="small" />
-        </IconButton>
-        <IconButton
-          size="small"
-          title="Upload chat"
-          onClick={() => {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.accept = ".json";
-            input.onchange = (e) => {
-              const file = (e.target as HTMLInputElement).files?.[0];
-              if (!file) return;
-
-              const reader = new FileReader();
-              reader.onload = (e) => {
-                try {
-                  const chatData = JSON.parse(e.target?.result as string);
-                  onUploadChat?.(chatData);
-                } catch (error) {
-                  console.error("Failed to parse chat JSON:", error);
-                  alert(
-                    "Failed to parse chat file. Please ensure it's a valid JSON file.",
-                  );
-                }
-              };
-              reader.readAsText(file);
-            };
-            input.click();
-          }}
-          sx={{
-            color: "text.secondary",
-            "&:hover": {
-              color: "primary.main",
-            },
-          }}
-        >
-          <FileUploadIcon fontSize="small" />
-        </IconButton>
       </Box>
     </Box>
   );

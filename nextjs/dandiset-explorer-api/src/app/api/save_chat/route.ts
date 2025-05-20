@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
 import { createSignedUploadUrl } from '../../../lib/signedUrls';
+import { connectDB } from '../../../lib/mongodb';
+import { Chat } from '../../../models/Chat';
 
 const s3BucketUri = process.env.S3_BUCKET_URI;
 const s3Credentials = process.env.S3_CREDENTIALS;
@@ -24,24 +26,16 @@ const sha1Hash = (data: string) => {
     return hash.digest('hex');
 };
 
-export async function GET(
+export async function POST(
     request: Request
 ) {
     try {
-        const { searchParams } = new URL(request.url);
-        const passcode = searchParams.get('passcode');
-        const chatId = searchParams.get('chatId');
-        const chatKey = searchParams.get('chatKey');
-        const dandisetId = searchParams.get('dandisetId');
-        const dandisetVersion = searchParams.get('dandisetVersion');
-        const size = parseInt(searchParams.get('size') || "");
+        const { chat, chatKey, size, passcode } = await request.json();
+        const { chatId, dandisetId, dandisetVersion } = chat;
 
-        if (!chatId) {
-            return NextResponse.json({ error: 'Chat ID is required' }, { status: 400 });
-        }
-
-        if (!chatKey) {
-            return NextResponse.json({ error: 'Chat key is required' }, { status: 400 });
+        // Validate required fields
+        if (!chatId || !chatKey || !dandisetId || !dandisetVersion || !size) {
+            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
         const chatKeyHash = await sha1Hash(chatKey);
@@ -49,34 +43,36 @@ export async function GET(
             return NextResponse.json({ error: 'Invalid chat key' }, { status: 401 });
         }
 
-        if (!dandisetId) {
-            return NextResponse.json({ error: 'Dandiset ID is required' }, { status: 400 });
-        }
-
-        if (!dandisetVersion) {
-            return NextResponse.json({ error: 'Dandiset version is required' }, { status: 400 });
-        }
-
         if (!passcode || passcode !== process.env.CHAT_PASSCODE) {
             return NextResponse.json({ error: 'Invalid passcode' }, { status: 401 });
-        }
-
-        if (!size) {
-            return NextResponse.json({ error: 'Size is required' }, { status: 400 });
         }
 
         if (size > 1024 * 1024 * 100) {
             return NextResponse.json({ error: 'File size exceeds limit' }, { status: 400 });
         }
 
-        // Generate the signed upload URL
-        const { signedUploadUrl } = await createSignedUploadUrl({
+        // Get object key and signed URL
+        const { objectKey, signedUploadUrl } = await createSignedUploadUrl({
             zone,
             chatId,
             dandisetId,
             dandisetVersion,
             size
         });
+
+        // Construct permanent URL
+        const permanentUrl = `https://neurosift.org/${objectKey}`;
+
+        // Save metadata to MongoDB
+        await connectDB();
+        await Chat.findOneAndUpdate(
+            { chatId },
+            {
+                ...chat,
+                chatUrl: permanentUrl,
+            },
+            { upsert: true }
+        );
 
         return NextResponse.json({ signedUrl: signedUploadUrl });
     } catch (error) {

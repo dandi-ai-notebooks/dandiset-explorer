@@ -5,6 +5,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useCallback, useMemo, useState } from "react";
 import { JupyterConnectivityProvider } from "../jupyter/JupyterConnectivityProvider";
 import JupyterConfigurationView from "../jupyter/JupyterConfigurationView";
+import ChatsView from "../chat/ChatsView";
 
 interface ChatPageProps {
   width: number;
@@ -30,14 +31,6 @@ function ChatPage({ width, height }: ChatPageProps) {
     }
     navigate(`${window.location.pathname}?${newSearchParams.toString()}`);
   }, [navigate, searchParams]);
-
-  const metadataForChatJson = useMemo(() => {
-    return {
-      application: "dandiset-explorer",
-      dandisetId,
-      dandisetVersion,
-    };
-  }, [dandisetId, dandisetVersion]);
 
   const initialPromptUserChoices = useMemo(() => {
     return ["Tell me about this dandiset."];
@@ -89,6 +82,7 @@ function ChatPage({ width, height }: ChatPageProps) {
             }}
           >
             <Tab label="Chat" />
+            <Tab label="Chats" />
             <Tab label="Jupyter Config" />
           </Tabs>
         </Box>
@@ -107,7 +101,6 @@ function ChatPage({ width, height }: ChatPageProps) {
           height={height}
           topBubbleContent={topBubbleContent}
           initialUserPromptChoices={initialPromptUserChoices}
-          metadataForChatJson={metadataForChatJson}
           onChatUploaded={handleChatUploaded}
           dandisetId={dandisetId}
           dandisetVersion={dandisetVersion}
@@ -118,6 +111,26 @@ function ChatPage({ width, height }: ChatPageProps) {
       <Box
         sx={{
           display: selectedTab === 1 ? "block" : "none",
+          position: "absolute",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: Math.min(width, maxWidth),
+        }}
+      >
+        <ChatsView
+          width={Math.min(width, maxWidth)}
+          height={height - 50}
+          dandisetId={dandisetId}
+          dandisetVersion={dandisetVersion}
+          onChatSelect={(chatId) => {
+            handleSetChatId(chatId);
+            setSelectedTab(0);
+          }}
+        />
+      </Box>
+      <Box
+        sx={{
+          display: selectedTab === 2 ? "block" : "none",
           position: "absolute",
           left: "50%",
           transform: "translateX(-50%)",

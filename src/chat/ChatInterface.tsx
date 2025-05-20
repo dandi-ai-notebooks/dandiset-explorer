@@ -22,7 +22,6 @@ type ChatInterfaceProps = {
   height: number;
   topBubbleContent: string;
   initialUserPromptChoices?: string[];
-  metadataForChatJson?: Record<string, any>;
   onChatUploaded: (metadata: any) => void;
   dandisetId: string;
   dandisetVersion: string;
@@ -40,7 +39,6 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
   height,
   topBubbleContent,
   initialUserPromptChoices,
-  metadataForChatJson,
   dandisetId,
   dandisetVersion,
   chatId,
@@ -114,6 +112,8 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
       });
     }
   }, [chatState.chatKey, chatState.chat.chatId, dandisetId, dandisetVersion]);
+
+  console.log('--- chatState', chatState);
 
   const handleSendMessage = async (content: string) => {
     const userMessage: ORMessage = {
@@ -220,6 +220,13 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
         ...chatState.chat,
         chatId: chatId,
         messages: [...chatState.chat.messages, userMessage, ...response.newMessages],
+        messageMetadata: [...chatState.chat.messageMetadata, {
+          model: chatState.currentModel,
+          timestamp: Date.now(),
+        }, ...response.newMessages.map(() => ({
+          model: chatState.currentModel,
+          timestamp: Date.now(),
+        }))],
       }, chatKey)
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -518,7 +525,6 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
         onClearChat={handleClearChat}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onAutoFill={handleAutoFill}
-        metadataForChatJson={metadataForChatJson}
       />
       <OpenRouterKeyDialog
         open={isSettingsOpen}

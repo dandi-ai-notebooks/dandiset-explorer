@@ -275,13 +275,28 @@ export const saveChat = async (chat: Chat, chatKey: string) => {
     return;
   }
 
-  const { chatId, dandisetId, dandisetVersion } = chat;
+  // Prepare metadata without messages for MongoDB
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { messages: _, ...chatMetadata } = chatSquashed;
+  // Keep full chat for S3
   const chatSquashedStringified = JSON.stringify(chatSquashed);
   const size = chatSquashedStringified.length;
+
+  console.log('--- chat metadata ---', chatMetadata);
+
   const response = await fetch(
-    `https://dandiset-explorer-api.vercel.app/api/save_chat?chatId=${chatId}&chatKey=${chatKey}&dandisetId=${dandisetId}&dandisetVersion=${dandisetVersion}&size=${size}&passcode=${CHAT_PASSCODE}`,
+    `https://dandiset-explorer-api.vercel.app/api/save_chat`,
     {
-      method: "GET",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        chat: chatMetadata,
+        chatKey,
+        size,
+        passcode: CHAT_PASSCODE
+      }),
     }
   );
 
@@ -290,11 +305,7 @@ export const saveChat = async (chat: Chat, chatKey: string) => {
     return;
   }
 
-  const { signedUrl, error } = await response.json();
-  if (error) {
-    console.error("Error getting upload URL:", error);
-    return;
-  }
+  const { signedUrl } = await response.json();
 
   // Now upload the chat data to S3
   const uploadResponse = await fetch(signedUrl, {
@@ -329,14 +340,10 @@ export const loadChat = async (a: {
     return null;
   }
 
-  const { signedUrl, error } = await response.json();
-  if (error) {
-    console.error("Error getting download URL:", error);
-    return null;
-  }
+  const { chatUrl } = await response.json();
 
   // Now download the chat data from S3
-  const downloadResponse = await fetch(signedUrl);
+  const downloadResponse = await fetch(chatUrl);
   if (!downloadResponse.ok) {
     console.error("Failed to download chat data:", downloadResponse.statusText);
     return null;
