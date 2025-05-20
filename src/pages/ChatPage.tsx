@@ -117,7 +117,10 @@ function ChatPage({ width, height }: ChatPageProps) {
           width: Math.min(width, maxWidth),
         }}
       >
-        <JupyterConfigurationView />
+        <JupyterConfigurationView
+          width={Math.min(width, maxWidth)}
+          height={height - 50}
+         />
       </Box>
       <Box
         sx={{
