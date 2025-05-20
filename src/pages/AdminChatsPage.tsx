@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Stack } from '@mui/material';
 import { getAllStoredChatKeys, removeChatKeyInfo } from '../chat/chatKeyStorage';
 import { Chat } from '../chat/Chat';
+import { useNavigate } from 'react-router-dom';
 
 const formatTimestamp = (timestamp: number) => {
     return new Date(timestamp).toLocaleString();
@@ -19,13 +20,14 @@ const getUniqueModels = (chat: Chat) => {
 interface AdminChatsPageProps {
     width: number;
     height: number;
-    onChatSelect: (chatId: string) => void;
 }
 
-const AdminChatsPage = ({ width, height, onChatSelect }: AdminChatsPageProps) => {
+const AdminChatsPage = ({ width, height }: AdminChatsPageProps) => {
     const [chats, setChats] = useState<Chat[]>([]);
     const storedChatKeys = getAllStoredChatKeys();
     const passcode = "default-chat-passcode";
+
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchChats = async () => {
@@ -81,7 +83,9 @@ const AdminChatsPage = ({ width, height, onChatSelect }: AdminChatsPageProps) =>
                                 <Stack direction="row" spacing={1}>
                                     <Button
                                         variant="outlined"
-                                        onClick={() => onChatSelect(chat.chatId)}
+                                        onClick={() => {
+                                            navigate(`/dandiset-explorer/chat?chatId=${chat.chatId}&dandisetId=${chat.dandisetId}&dandisetVersion=${chat.dandisetVersion}`);
+                                        }}
                                     >
                                         Open
                                     </Button>

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SettingsIcon from "@mui/icons-material/Settings";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import {
   Box,
   FormControl,
@@ -25,6 +26,7 @@ const StatusBar: FunctionComponent<{
   onUploadChat?: (chatData: any) => void;
   onOpenSettings?: () => void;
   onAutoFill?: () => void;
+  onFork?: () => void;
 }> = ({
   selectedModel,
   onModelChange,
@@ -35,7 +37,8 @@ const StatusBar: FunctionComponent<{
   messages,
   onClearChat,
   onOpenSettings,
-  onAutoFill
+  onAutoFill,
+  onFork
 }) => {
   const numMessages = messages.length;
 
@@ -119,6 +122,22 @@ const StatusBar: FunctionComponent<{
         >
           <span style={{ fontSize: '0.7rem', fontWeight: 'bold' }}>Auto ask</span>
         </IconButton>
+        {onFork && (
+          <IconButton
+            size="small"
+            title="Create a copy of this chat with a new ID"
+            onClick={onFork}
+            sx={{
+              color: "text.secondary",
+              "&:hover": {
+                color: "primary.main",
+              },
+            }}
+            disabled={isLoading}
+          >
+            <ContentCopyIcon fontSize="small" sx={{ width: 16, height: 16 }} />
+          </IconButton>
+        )}
       </Box>
       <Box
         sx={{

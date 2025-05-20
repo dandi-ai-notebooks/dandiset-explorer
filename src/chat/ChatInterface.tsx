@@ -261,6 +261,16 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     toolCallForPermission
   ]);
 
+  const handleFork = async () => {
+    const { chatId: newChatId, chatKey: newChatKey } = await createChatId();
+    chatStateDispatch({
+      type: "set_chat_key",
+      chatKey: newChatKey,
+      chatId: newChatId,
+    });
+    setChatId(newChatId);
+  };
+
   const handleClearChat = () => {
     const confirmed = window.confirm(
       "Are you sure you want to clear the entire chat?"
@@ -549,6 +559,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
         onClearChat={handleClearChat}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onAutoFill={handleAutoFill}
+        onFork={handleFork}
       />
       <OpenRouterKeyDialog
         open={isSettingsOpen}

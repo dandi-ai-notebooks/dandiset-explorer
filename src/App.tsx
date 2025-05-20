@@ -1,14 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import AdminChatsPage from './pages/AdminChatsPage';
 import ChatPage from './pages/ChatPage';
 
 const AppContent = () => {
-  const navigate = useNavigate();
-
-  const handleChatSelect = (chatId: string) => {
-    navigate(`/dandiset-explorer/chat?chatId=${chatId}`);
-  };
   const [windowDimensions, setWindowDimensions] = useState({
     width: window.innerWidth,
     height: window.innerHeight
@@ -56,7 +51,6 @@ const AppContent = () => {
               <AdminChatsPage
                 width={windowDimensions.width}
                 height={windowDimensions.height - headerHeight}
-                onChatSelect={handleChatSelect}
               />
             }
           />
