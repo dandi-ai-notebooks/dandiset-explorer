@@ -82,8 +82,8 @@ function ChatPage({ width, height }: ChatPageProps) {
             }}
           >
             <Tab label="Chat" />
-            <Tab label="Chats" />
             <Tab label="Jupyter Config" />
+            <Tab label="Chats" />
           </Tabs>
         </Box>
       </Box>
@@ -110,6 +110,17 @@ function ChatPage({ width, height }: ChatPageProps) {
       </Box>
       <Box
         sx={{
+          display: selectedTab === 2 ? "block" : "none",
+          position: "absolute",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: Math.min(width, maxWidth),
+        }}
+      >
+        <JupyterConfigurationView />
+      </Box>
+      <Box
+        sx={{
           display: selectedTab === 1 ? "block" : "none",
           position: "absolute",
           left: "50%",
@@ -127,17 +138,6 @@ function ChatPage({ width, height }: ChatPageProps) {
             setSelectedTab(0);
           }}
         />
-      </Box>
-      <Box
-        sx={{
-          display: selectedTab === 2 ? "block" : "none",
-          position: "absolute",
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: Math.min(width, maxWidth),
-        }}
-      >
-        <JupyterConfigurationView />
       </Box>
     </JupyterConnectivityProvider>
   );
