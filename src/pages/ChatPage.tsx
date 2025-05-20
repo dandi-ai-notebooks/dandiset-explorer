@@ -110,7 +110,7 @@ function ChatPage({ width, height }: ChatPageProps) {
       </Box>
       <Box
         sx={{
-          display: selectedTab === 2 ? "block" : "none",
+          display: selectedTab === 1 ? "block" : "none",
           position: "absolute",
           left: "50%",
           transform: "translateX(-50%)",
@@ -121,7 +121,7 @@ function ChatPage({ width, height }: ChatPageProps) {
       </Box>
       <Box
         sx={{
-          display: selectedTab === 1 ? "block" : "none",
+          display: selectedTab === 2 ? "block" : "none",
           position: "absolute",
           left: "50%",
           transform: "translateX(-50%)",
