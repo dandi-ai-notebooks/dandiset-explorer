@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import * as getDandisetAssets from "./tools/getDandisetAssets";
+// import * as getDandisetAssets from "./tools/getDandisetAssets";
 import * as getNwbFileInfo from "./tools/getNwbFileInfo";
 import * as executePythonCode from "./tools/executePythonCode";
 
@@ -25,7 +25,11 @@ interface NCTool {
   isCancelable: boolean;
 }
 
-const staticTools: NCTool[] = [getDandisetAssets, getNwbFileInfo, executePythonCode];
+// const staticTools: NCTool[] = [getDandisetAssets, getNwbFileInfo, executePythonCode];
+const staticTools: NCTool[] = [
+  getNwbFileInfo,
+  executePythonCode,
+];
 
 export const getAllTools = async () => {
   return [...staticTools] as const;

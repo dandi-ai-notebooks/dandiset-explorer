@@ -218,9 +218,9 @@ Here's what you'll want to learn about specifically:
 
 You'll want to learn what the Dandiset is about.
 
-You'll want to learn what files are in the dandiset.
+You'll want to learn the names of some of the NWB files in the dandiset.
 
-You'll want to learn how to load and visualize the data from an NWB file (start with one).
+You'll want to learn how to load and visualize the data from an NWB file (start with one). If the data is very large, you'll want to load and visualize a subset.
 
 You should cover all the types of data in the NWB files, where possible and reasonable.
 

@@ -17,34 +17,40 @@ export const toolFunction: ORFunctionDescription = {
         type: "string",
         description: "The version of the dandiset that contains the NWB file.",
       },
-      assetId: {
+      assetPath: {
         type: "string",
-        description: "The ID of the NWB file asset.",
+        description: "The path of the NWB file asset.",
       },
     },
-    required: ["dandisetId", "dandisetVersion", "assetId"],
+    required: ["dandisetId", "dandisetVersion", "assetPath"],
   },
 };
 
 type GetNwbFileInfoParams = {
   dandisetId: string;
   dandisetVersion: string;
-  assetId: string;
+  assetPath: string;
 };
 
 export const execute = async (
   params: GetNwbFileInfoParams,
   o: ToolExecutionContext
 ) => {
-  const { assetId } = params;
+  const { dandisetId, dandisetVersion, assetPath } = params;
 
   try {
+    if (assetPath === "*.nwb") {
+      // in this case the LLM got confused
+      return {
+        result: "Please provide a specific asset path, not just *.nwb.",
+      };
+    }
+
     if (!o.jupyterConnectivity.jupyterServerIsAvailable) {
       throw new Error(
         "Jupyter server is not available. Please configure a Jupyter server to use this tool."
       );
     }
-    const assetUrl = `https://api.dandiarchive.org/api/assets/${assetId}/download/`;
     const client = new PythonSessionClient(o.jupyterConnectivity);
     const outputLines: string[] = [];
     client.onOutputItem((item) => {
@@ -80,9 +86,27 @@ except ImportError:
   print("get_nwbfile_info module not found. Please install it first.")
   raise
 
+from dandi.dandiapi import DandiAPIClient
 
-usage_script = get_nwbfile_usage_script("${assetUrl}")
+client = DandiAPIClient()
+dandiset = client.get_dandiset("${dandisetId}", "${dandisetVersion}")
+
+download_url = next(dandiset.get_assets_by_glob("${assetPath}")).download_url
+
+usage_script = get_nwbfile_usage_script(download_url)
+
+# replace the url = "..." string with placeholder literally url = "..."
+# That way, the AI will not try to use the hard-coded url
+lines = usage_script.split("\\n")
+for i, line in enumerate(lines):
+  if line.startswith("url = "):
+    lines[i] = 'url = "..."'
+usage_script = "\\n".join(lines)
+
+
+print("\`\`\`python")
 print(usage_script)
+print("\`\`\`")
 `);
     await client.waitUntilIdle();
     await client.shutdown();

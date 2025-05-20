@@ -15,6 +15,7 @@ const constructInitialSystemMessages = async (o: {
   dandisetVersion: string;
   doSuggestedPrompts?: boolean;
 }) => {
+  const include1 = false;
   let message1 = ``;
 
   // Note: the phrase "asks questions that are not related to DANDI, a Dandiset, or NWB, politely refuse to answer"
@@ -34,8 +35,13 @@ In the next system message, you will find meta information about this Dandiset.
 
 You have the ability to execute Python code using the execute_python_code tool (see below).
 
+${
+  include1 ? `
 To get a list of assets/files for the dandiset, the most straightforward way is to use the get_dandiset_assets tool (see below). However,
 if the user is interested in how to do this from Python, you can also provide them with a code snippet (or execute it if you wish) using the following method:
+` : ""
+}
+
 
 To get a list of assets/files for the dandiset use the execute_python_code tool and use the dandi Python API. Here's an example:
 
@@ -46,16 +52,15 @@ client = DandiAPIClient()
 dandiset = client.get_dandiset("${o.dandisetId}", "${o.dandisetVersion}")
 
 # List some assets in the Dandiset
-assets = dandiset.get_assets()
+assets = dandiset.get_assets_by_glob("*.nwb")
 print("\nFirst 10 assets:")
 for asset in islice(assets, 10):
-    print(f"- {asset.path} ({asset.identifier})")
+    print(f"- {asset.path}")
 \`\`\`
 
-Some dandisets may have a very large number of files, so it is good practice to limit the number of files you are
-showing.
+We'll only be interested in .nwb files.
 
-You'll want to always print the asset IDs so that you can use those with the get_nwbfile_info tool.
+Some dandisets may have a very large number of files, so it is good practice to limit the number of files you are loading. If there are not too many files, you can use list(dandiset.get_assets()). Otherwise, respect the iterator, and make use of get_assets_by_glob as described below.
 
 For the asset object you can get the size of the file in bytes via \`asset.size\`.
 
@@ -71,7 +76,8 @@ import h5py
 import pynwb
 import remfile
 
-...
+path = "... the asset path ..."
+asset = next(dandiset.get_assets_by_glob(path))
 
 remote_file = remfile.File(asset.download_url)
 h5_file = h5py.File(remote_file)
@@ -79,15 +85,19 @@ io = pynwb.NWBHDF5IO(file=h5_file)
 nwb = io.read()
 \`\`\`
 
-To understand the contents of a particular NWB file (know what data is inside) and learn how to load it, use the
-get_nwbfile_info tool (described below). The output of that will contain a usage script. That script is not meant to
-be shown to the user, but is meant to guide you in knowing how to construct scripts and know what data are available.
-Even though the URL is hard-coded in the usage script, you can use the asset.download_url to get the URL in a
-more transparent way.
+To understand the contents of a particular NWB file (know what data is inside) and learn how to load it, use the get_nwbfile_info tool (described below). The output of that will contain a usage script. That script is not meant to be shown to the user, but is meant to guide you in knowing how to construct scripts and know what data are available. Even though the URL is hard-coded in the usage script, you can use the asset.download_url as above to get the URL in a more transparent way.
+
+Do not use the get_nwbfile_info tool until you find out the paths of files in the Dandiset using the dandi api as above.
+
+It's important to get the dandiset assets as shown above so you know what asset path to use when loading the NWB file.
 
 If the user asks to load or download a file, you should use the above method.
 You should not just give them the URL because the file will usually be too large to conveniently download.
 Be sure to use the get_nwbfile_info tool to get the usage script for the file before you provide the script to load it.
+
+IMPORTANT: You should start all scripts with the code necessary to load the download urls for any nwb file(s) using the dandi api as shown above. Do not hard-code the url, even though that is what is shown in the usage script.
+
+IMPORTANT: Do not attempt to load data from the NWB file until after you have gotten the usage info using the get_nwbfile_info tool.
 
 # Execution of code
 
@@ -141,9 +151,7 @@ If the user wants to know about the dandiset in an open-ended way, you will guid
 
 # Notes
 
-If the user wants to load an NWB file, you should first use the get_nwbfile_info tool to get the usage script for the file.
-You should not provide this usage script to the user - this is meant for you to understand how to load it.
-Then you can choose how to communicate the information to the user as relevant.
+If the user wants to load an NWB file, you should first use the get_nwbfile_info tool to get the usage script for the file. You should not provide this usage script to the user - this is meant for you to understand how to load it. Then you can choose how to communicate the information to the user as relevant.
 
 Do not make the same tool call more than once. For example, if you call get_nwbfile_info, you should not call it again for the same chat. You already have that information.
 
