@@ -101,8 +101,9 @@ lines = usage_script.split("\\n")
 for i, line in enumerate(lines):
   if line.startswith("url = "):
     lines[i] = 'url = "..."'
+  if line.startswith("# ") and "https://api.dandiarchive.org/" in line:
+    lines[i] = "" # Hide where we display the asset URL so that the AI doesn't use it directly
 usage_script = "\\n".join(lines)
-
 
 print("\`\`\`python")
 print(usage_script)
