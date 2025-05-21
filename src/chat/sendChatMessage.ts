@@ -123,6 +123,8 @@ You should not repeat the code that you executed in your response since the user
 However, for other tool calls, you should assume that the content of the tool call is NOT visible to the user.
 
 When you refer to images that were generated, you should refer to them as "the image above" or "the plot above" or "the figure above".
+
+When you use the execute_python_code tool, the user can see the code, so there is no need to repeat it in your response.
 `;
 
   if (o.doSuggestedPrompts) {
