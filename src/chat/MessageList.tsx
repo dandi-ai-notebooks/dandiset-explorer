@@ -9,8 +9,8 @@ type MessageListProps = {
   scrollToBottomEnabled: boolean;
   toolCallForPermission?: ORToolCall;
   onSetToolCallApproval?: (toolCall: ORToolCall, approved: boolean) => void;
-  toolCallForCancel?: ORToolCall;
-  onCancelToolCall?: (toolCall: ORToolCall) => void;
+  toolCallForCancel?: ORToolCall | "completion";
+  onCancelToolCall?: (toolCall: ORToolCall | "completion") => void;
   height: number;
   onDeleteMessage?: (message: ORMessage) => void;
   onSpecialLinkClicked?: (linkText: string) => void;
@@ -75,12 +75,6 @@ const MessageList: FunctionComponent<MessageListProps> = ({
       )}
       {toolCallForCancel && onCancelToolCall && (
         <button onClick={() => {
-          const ok = window.confirm(
-            "Are you sure you want to cancel this tool call?"
-          );
-          if (!ok) {
-            return;
-          }
           onCancelToolCall(toolCallForCancel)
         }}
           style={{
@@ -92,7 +86,7 @@ const MessageList: FunctionComponent<MessageListProps> = ({
             cursor: "pointer",
           }}
         >
-          Cancel Tool Call
+          {toolCallForCancel === "completion" ? "Cancel Completion" : `Cancel ${toolCallForCancel.function.name}`}
         </button>
       )}
       {isLoading && (

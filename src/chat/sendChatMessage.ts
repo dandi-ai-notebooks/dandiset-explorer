@@ -237,7 +237,6 @@ const fetchDandisetMetadata = async (o: {
 };
 
 export type ChatMessageResponse = {
-  newMessages: ORMessage[];
   usage?: {
     prompt_tokens: number;
     completion_tokens: number;
@@ -252,9 +251,9 @@ export const sendChatMessage = async (
     jupyterConnectivity: JupyterConnectivityState;
     dandisetId: string;
     dandisetVersion: string;
-    onPendingMessages?: (messages: ORMessage[]) => void;
+    onUpdate: (pendingMessages: ORMessage[], newMessages: ORMessage[]) => void;
     askPermissionToRunTool: (toolCall: ORToolCall) => Promise<boolean>;
-    setToolCallForCancel: (toolCall: ORToolCall | undefined, onCancel: (() => void) | undefined) => void;
+    setToolCallForCancel: (toolCall: ORToolCall | "completion" | undefined, onCancel: (() => void) | undefined) => void;
     openRouterKey?: string;
   }
 ): Promise<ChatMessageResponse> => {
@@ -280,12 +279,39 @@ export const sendChatMessage = async (
     })),
   };
 
-  const result = await fetchCompletion(request, o);
+  let result;
+  const controller = new AbortController();
+  o.setToolCallForCancel("completion", () => {
+    controller.abort();
+  });
+  try {
+    result = await fetchCompletion(request, {
+      openRouterKey: o.openRouterKey,
+      signal: controller.signal,
+    });
+    o.setToolCallForCancel(undefined, undefined);
+  }
+  catch (e) {
+    o.onUpdate(messages1, [
+      {
+        role: "system",
+        content: `Error in call to OpenRouter API: ${e}`,
+      },
+    ]);
+    o.setToolCallForCancel(undefined, undefined);
+    return {};
+  }
 
   const choice = result.choices[0];
 
   if (!choice) {
-    return { newMessages: [] };
+    const msg: ORMessage = {
+      role: "system",
+      content: "Error in call to OpenRouter API. No choices returned.",
+    }
+    messages1.push(msg);
+    o.onUpdate(messages1, [msg]);
+    return {};
   }
 
   const prompt_tokens = !result.cacheHit ? result.usage?.prompt_tokens || 0 : 0;
@@ -302,11 +328,9 @@ export const sendChatMessage = async (
   // const updatedMessages = [...messages];
 
   // actually we do
-  const updatedMessages = [...messages1];
+  let updatedMessages = [...messages1];
   const newMessages: ORMessage[] = [];
-  if (o.onPendingMessages) {
-    o.onPendingMessages(updatedMessages);
-  }
+  o.onUpdate(updatedMessages, newMessages);
 
   // Check if it's a non-streaming choice with message
   if ("message" in choice && choice.message) {
@@ -322,12 +346,14 @@ export const sendChatMessage = async (
       };
       updatedMessages.push(assistantMessage);
       newMessages.push(assistantMessage);
-      if (o.onPendingMessages) {
-        o.onPendingMessages(updatedMessages);
-      }
+      o.onUpdate(updatedMessages, newMessages);
 
       const tools = await getAllTools();
+      let canceled = false;
       for (const tc of toolCalls) {
+        if (canceled) {
+          break;
+        }
         const tool = tools.find(
           (tool) => tool.toolFunction.name === tc.function.name
         );
@@ -346,7 +372,8 @@ export const sendChatMessage = async (
           if (tool.isCancelable) {
             o.setToolCallForCancel(tc, () => {
               if (onCancelRef.onCancel) {
-                onCancelRef.onCancel();
+                canceled = true;
+                onCancelRef.onCancel(); // communicates the cancel to the tool execution
               }
             });
           }
@@ -366,9 +393,7 @@ export const sendChatMessage = async (
             updatedMessages.push(...toolResult.newMessages);
             newMessages.push(...toolResult.newMessages);
           }
-          if (o.onPendingMessages) {
-            o.onPendingMessages(updatedMessages);
-          }
+          o.onUpdate(updatedMessages, newMessages);
         } else {
           const toolMessage: ORMessage = {
             role: "tool",
@@ -377,29 +402,29 @@ export const sendChatMessage = async (
           };
           updatedMessages.push(toolMessage);
           newMessages.push(toolMessage);
-          if (o.onPendingMessages) {
-            o.onPendingMessages(updatedMessages);
-          }
+          o.onUpdate(updatedMessages, newMessages);
           break;
         }
       }
       o.setToolCallForCancel(undefined, undefined);
 
       let shouldMakeAnotherRequest = false;
-      // only make another request if there was a tool call that was not interact_with_app
-      for (const toolCall of toolCalls) {
-        if (
-          toolCall.type === "function" &&
-          toolCall.function.name !== "interact_with_app"
-        ) {
-          shouldMakeAnotherRequest = true;
-          break;
+      // only make another request if not canceled and there was a tool call that was not interact_with_app
+      if (!canceled) {
+        for (const toolCall of toolCalls) {
+          if (
+            toolCall.type === "function" &&
+            toolCall.function.name !== "interact_with_app"
+          ) {
+            shouldMakeAnotherRequest = true;
+            break;
+          }
         }
       }
 
       if (!shouldMakeAnotherRequest) {
+        o.onUpdate(updatedMessages, newMessages);
         return {
-          newMessages,
           usage: {
             prompt_tokens,
             completion_tokens,
@@ -408,16 +433,17 @@ export const sendChatMessage = async (
         };
       }
       // Make another request with the updated messages
+      let newMessagesFromNextRequest: ORMessage[] = [];
       const rr = await sendChatMessage(updatedMessages, model, {
         ...o,
-        onPendingMessages: (mm: ORMessage[]) => {
-          if (o.onPendingMessages) {
-            o.onPendingMessages(mm);
-          }
-        },
+        onUpdate: (pendingMessages0: ORMessage[], newMessages0: ORMessage[]) => {
+          newMessagesFromNextRequest = newMessages0;
+          updatedMessages = pendingMessages0;
+          o.onUpdate(pendingMessages0, [...newMessages, ...newMessages0]);
+        }
       });
+      o.onUpdate(updatedMessages, [...newMessages, ...newMessagesFromNextRequest]);
       return {
-        newMessages: [...newMessages, ...rr.newMessages],
         usage: rr.usage
           ? {
               prompt_tokens: prompt_tokens + rr.usage.prompt_tokens,
@@ -438,8 +464,8 @@ export const sendChatMessage = async (
     newMessages.push(assistantMessage);
   }
 
+  o.onUpdate(updatedMessages, newMessages);
   return {
-    newMessages,
     usage: {
       prompt_tokens,
       completion_tokens,
@@ -544,6 +570,7 @@ export const fetchCompletion = async (
   request: ORRequest,
   o: {
     openRouterKey?: string;
+    signal?: AbortSignal;
   }
 ): Promise<ORResponse & { cacheHit?: boolean }> => {
   const cacheKey = await computeHash(JSONStringifyDeterministic(request));
@@ -568,6 +595,7 @@ export const fetchCompletion = async (
           Authorization: `Bearer ${o.openRouterKey}`,
         },
         body: JSON.stringify(request),
+        signal: o.signal,
       }
     );
   }
@@ -581,6 +609,7 @@ export const fetchCompletion = async (
           ...(o.openRouterKey ? { "x-openrouter-key": o.openRouterKey } : {}), // leave this as is in case we want to always route through the api
         },
         body: JSON.stringify(request),
+        signal: o.signal,
       }
     );
   }

@@ -58,7 +58,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
   >([]);
 
   const [toolCallForCancelState, setToolCallForCancelState] = useState<
-    { toolCall: ORToolCall; onCancel: (toolCall: ORToolCall) => void } | undefined
+    { toolCall: ORToolCall | "completion"; onCancel: (toolCall: ORToolCall | "completion") => void } | undefined
   >(undefined);
 
   const jupyterConnectivity = useJupyterConnectivity();
@@ -141,6 +141,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     setIsLoading(true);
 
     try {
+      let newMessages: ORMessage[] = [];
       const response = await sendChatMessage(
         [...chatState.chat.messages, userMessage],
         chatState.currentModel,
@@ -148,10 +149,11 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
           jupyterConnectivity,
           dandisetId,
           dandisetVersion,
-          onPendingMessages: (mm: ORMessage[]) => {
+          onUpdate: (pm: ORMessage[], nm: ORMessage[]) => {
+            newMessages = nm;
             chatStateDispatch({
               type: "set_pending_messages",
-              pendingMessages: mm,
+              pendingMessages: pm,
             });
           },
           askPermissionToRunTool: async (toolCall: ORToolCall) => {
@@ -213,7 +215,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
 
       chatStateDispatch({
         type: "add_messages",
-        messages: response.newMessages,
+        messages: newMessages,
         metadata: {
           model: chatState.currentModel,
           timestamp: Date.now(),
@@ -235,11 +237,11 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
       saveChat({
         ...chatState.chat,
         chatId: chatId,
-        messages: [...chatState.chat.messages, userMessage, ...response.newMessages],
+        messages: [...chatState.chat.messages, userMessage, ...newMessages],
         messageMetadata: [...chatState.chat.messageMetadata, {
           model: chatState.currentModel,
           timestamp: Date.now(),
-        }, ...response.newMessages.map(() => ({
+        }, ...newMessages.map(() => ({
           model: chatState.currentModel,
           timestamp: Date.now(),
         }))],
@@ -331,7 +333,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
   };
 
   const [isAutoFillLoading, setIsAutoFillLoading] = useState(false);
-  const handleAutoFill = async () => {
+  const handleAutoFill = useCallback(async () => {
     if (isAutoFillLoading) {
       return;
     }
@@ -363,7 +365,18 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     } finally {
       setIsAutoFillLoading(false);
     }
-  }
+  }, [
+    chatState.chat.messages,
+    chatState.currentModel,
+    openRouterKey,
+    isLoading,
+    isAutoFillLoading,
+    setIsAutoFillLoading,
+    chatStateDispatch,
+    handleSendMessage,
+    dandisetId,
+    dandisetVersion,
+  ]);
 
   const [scrollToBottomEnabled, setScrollToBottomEnabled] = useState(false);
 
