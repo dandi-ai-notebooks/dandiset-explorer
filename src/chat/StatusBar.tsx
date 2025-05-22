@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { ForkRight } from "@mui/icons-material";
+import { ForkRight, ResetTv } from "@mui/icons-material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import LockIcon from "@mui/icons-material/Lock";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -90,7 +90,7 @@ const StatusBar: FunctionComponent<{
         </FormControl>
         <IconButton
           size="small"
-          title="Clear all messages"
+          title="Clear all messages and start a new chat"
           disabled={isLoading || numMessages === 0}
           onClick={onClearChat}
           sx={{
@@ -100,7 +100,7 @@ const StatusBar: FunctionComponent<{
             },
           }}
         >
-          <DeleteOutlineIcon fontSize="small" />
+          <ResetTv fontSize="small" />
         </IconButton>
         <IconButton
           size="small"
