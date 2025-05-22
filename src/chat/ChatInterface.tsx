@@ -303,13 +303,8 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
   };
 
   const handleClearChat = () => {
-    if (chatState.chat.finalized) {
-      alert("Cannot delete a finalized chat. You may fork it to create a modifiable copy.");
-      return;
-    }
-
     const confirmed = window.confirm(
-      "Are you sure you want to clear the entire chat?"
+      "Are you sure you want to clear all messages and create a new chat?"
     );
     if (!confirmed) return;
 

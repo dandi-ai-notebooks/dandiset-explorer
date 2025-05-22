@@ -114,6 +114,7 @@ export const initialChatState = (o: {
         messageMetadata: [],
         timestampCreated: Date.now(),
         timestampUpdated: Date.now(),
+        finalized: false
     },
     pendingMessages: undefined,
     currentModel: "openai/gpt-4.1-mini",
