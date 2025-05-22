@@ -308,11 +308,16 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     );
     if (!confirmed) return;
 
+    const currentModel = chatState.currentModel;
     chatStateDispatch({
       type: "reset_chat",
       dandisetId,
       dandisetVersion
     });
+    chatStateDispatch({
+      type: "set_current_model",
+      model: currentModel,
+    })
     setChatId(undefined);
     setToolCallForPermission(undefined);
     approvedToolCalls.current = [];
