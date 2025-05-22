@@ -186,6 +186,8 @@ sns.set_theme()
 
 Do not use seaborn styling for plotting images.
 
+Don't forget to import numpy in your scripts.
+
 Image masks values range from 0 to 1. If you are plotting all image masks superimposed on each other in a single figure, use a heatmap with np.max on the image masks.
 
 For raw extracellular electrophysiology data, you shouldn't try to do spike detection, spike sorting, or anything like that in the notebook because it's too computationally intensive. Getting anything useful from extracullular electrophysiology data requires a lot of processing and is not something that can be done in a notebook. Instead, you should focus on showing how to load a reasonable amount of data and how to visualize it.

@@ -9,21 +9,15 @@ const sha1Hash = (data: string) => {
     return hash.digest('hex');
 };
 
-export async function DELETE(
+export async function POST(
     request: Request
 ) {
     try {
-        const { searchParams } = new URL(request.url);
-        const chatId = searchParams.get('chatId');
-        const chatKey = searchParams.get('chatKey');
-        const passcode = searchParams.get('passcode');
+        const { chatId, chatKey, passcode } = await request.json();
 
-        if (!chatId) {
-            return NextResponse.json({ error: 'Chat ID is required' }, { status: 400 });
-        }
-
-        if (!chatKey) {
-            return NextResponse.json({ error: 'Chat key is required' }, { status: 400 });
+        // Validate required fields
+        if (!chatId || !chatKey) {
+            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
         const chatKeyHash = await sha1Hash(chatKey);
@@ -35,23 +29,21 @@ export async function DELETE(
             return NextResponse.json({ error: 'Invalid passcode' }, { status: 401 });
         }
 
-        // Check if chat is finalized before deleting
+        // Update MongoDB document
         await connectDB();
-        const chat = await Chat.findOne({ chatId });
+        const result = await Chat.findOneAndUpdate(
+            { chatId },
+            { finalized: true },
+            { new: true }
+        );
 
-        if (!chat) {
+        if (!result) {
             return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
         }
 
-        if (chat.finalized) {
-            return NextResponse.json({ error: 'Cannot delete a finalized chat' }, { status: 403 });
-        }
-
-        const result = await Chat.deleteOne({ chatId });
-
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('Error in delete_chat:', error);
+        console.error('Error in finalize_chat:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }

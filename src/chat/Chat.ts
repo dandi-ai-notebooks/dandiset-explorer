@@ -14,6 +14,7 @@ export type Chat = {
   }[];
   timestampCreated: number;
   timestampUpdated: number;
+  finalized?: boolean;
 };
 
 export type ChatState = {
@@ -74,6 +75,10 @@ export type ChatAction =
   | {
       type: "set_current_model";
       model: string;
+    }
+  | {
+      type: "set_finalized";
+      finalized: boolean;
     };
 
 const sha1 = async (s: string): Promise<string> => {
@@ -228,6 +233,15 @@ export const chatReducer = (
         currentModel: action.model,
       };
     }
+    case "set_finalized": {
+      return {
+        ...state,
+        chat: {
+          ...state.chat,
+          finalized: action.finalized,
+        },
+      };
+    }
     default:
       return state;
   }
@@ -268,6 +282,30 @@ const squashChat = (chat: Chat): Chat => {
 };
 
 const CHAT_PASSCODE = "default-chat-passcode";
+
+export const finalizeChat = async (chatId: string, chatKey: string) => {
+  const response = await fetch(
+    `https://dandiset-explorer-api.vercel.app/api/finalize_chat`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        chatId,
+        chatKey,
+        passcode: CHAT_PASSCODE
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    console.error("Failed to finalize chat:", response.statusText);
+    return { success: false, error: response.statusText };
+  }
+
+  return { success: true };
+};
 
 export const saveChat = async (chat: Chat, chatKey: string) => {
   const chatSquashed = squashChat(chat);

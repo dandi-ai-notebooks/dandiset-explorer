@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Stack } from '@mui/material';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Stack, Box, Tooltip } from '@mui/material';
+import LockIcon from "@mui/icons-material/Lock";
 import { getAllStoredChatKeys, removeChatKeyInfo } from '../chat/chatKeyStorage';
 import { Chat } from '../chat/Chat';
 import { useNavigate } from 'react-router-dom';
@@ -59,6 +60,7 @@ const AdminChatsPage = ({ width, height }: AdminChatsPageProps) => {
             <Table stickyHeader>
                 <TableHead>
                     <TableRow>
+                        <TableCell>Chat ID</TableCell>
                         <TableCell>Created</TableCell>
                         <TableCell>Last Updated</TableCell>
                         <TableCell>Dandiset</TableCell>
@@ -70,8 +72,18 @@ const AdminChatsPage = ({ width, height }: AdminChatsPageProps) => {
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {chats.map((chat) => (
+                    {[...chats].sort((a, b) => b.timestampUpdated - a.timestampUpdated).map((chat) => (
                         <TableRow key={chat.chatId}>
+                            <TableCell>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <span>{chat.chatId.slice(0, 8)}</span>
+                                    {chat.finalized && (
+                                        <Tooltip title="Finalized chat">
+                                            <LockIcon sx={{ width: 16, height: 16, color: 'warning.main' }} />
+                                        </Tooltip>
+                                    )}
+                                </Box>
+                            </TableCell>
                             <TableCell>{formatTimestamp(chat.timestampCreated)}</TableCell>
                             <TableCell>{formatTimestamp(chat.timestampUpdated)}</TableCell>
                             <TableCell>{chat.dandisetId}</TableCell>
@@ -89,7 +101,7 @@ const AdminChatsPage = ({ width, height }: AdminChatsPageProps) => {
                                     >
                                         Open
                                     </Button>
-                                    <Button
+                                    {storedChatKeys[chat.chatId]?.chatKey && !chat.finalized && <Button
                                         variant="outlined"
                                         color="error"
                                         onClick={async () => {
@@ -126,7 +138,7 @@ const AdminChatsPage = ({ width, height }: AdminChatsPageProps) => {
                                         }}
                                     >
                                         Delete
-                                    </Button>
+                                    </Button>}
                                 </Stack>
                             </TableCell>
                         </TableRow>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Stack } from '@mui/material';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Stack, Box, Tooltip } from '@mui/material';
+import LockIcon from "@mui/icons-material/Lock";
 import { Chat } from './Chat';
 import { getAllStoredChatKeys, removeChatKeyInfo } from './chatKeyStorage';
 
@@ -60,6 +61,7 @@ const ChatsView = ({ dandisetId, dandisetVersion, onChatSelect, width, height }:
             <Table stickyHeader>
                 <TableHead>
                     <TableRow>
+                        <TableCell>Chat ID</TableCell>
                         <TableCell>Created</TableCell>
                         <TableCell>Last Updated</TableCell>
                         <TableCell>Messages</TableCell>
@@ -69,8 +71,18 @@ const ChatsView = ({ dandisetId, dandisetVersion, onChatSelect, width, height }:
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {chats.map((chat) => (
+                    {[...chats].sort((a, b) => b.timestampUpdated - a.timestampUpdated).map((chat) => (
                         <TableRow key={chat.chatId}>
+                            <TableCell>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <span>{chat.chatId.slice(0, 8)}</span>
+                                    {chat.finalized && (
+                                        <Tooltip title="Finalized chat">
+                                            <LockIcon sx={{ width: 16, height: 16, color: 'warning.main' }} />
+                                        </Tooltip>
+                                    )}
+                                </Box>
+                            </TableCell>
                             <TableCell>{formatTimestamp(chat.timestampCreated)}</TableCell>
                             <TableCell>{formatTimestamp(chat.timestampUpdated)}</TableCell>
                             <TableCell>{chat.messageMetadata.length}</TableCell>
@@ -84,7 +96,7 @@ const ChatsView = ({ dandisetId, dandisetVersion, onChatSelect, width, height }:
                                     >
                                         Open
                                     </Button>
-                                    {storedChatKeys[chat.chatId] && (
+                                    {storedChatKeys[chat.chatId] && !chat.finalized && (
                                         <Button
                                             variant="outlined"
                                             color="error"

@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Box, Stack } from "@mui/material";
-import { FunctionComponent, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { FunctionComponent, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useJupyterConnectivity } from "../jupyter/JupyterConnectivity";
 import { getAllTools } from "./allTools";
-import { chatReducer, createChatId, initialChatState, loadChat, saveChat } from "./Chat";
+import { chatReducer, createChatId, initialChatState, loadChat, saveChat, finalizeChat } from "./Chat";
 import { loadChatKeyInfo, saveChatKeyInfo } from "./chatKeyStorage";
 import getAutoFillUserMessage from "./getAutoFillUserMessage";
 import MessageInput from "./MessageInput";
@@ -261,6 +261,29 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     toolCallForPermission
   ]);
 
+  const handleFinalize = useCallback(async () => {
+    if (!chatState.chat.chatId || !chatState.chatKey) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Are you sure you want to finalize this chat? Once finalized, it cannot be modified and you'll need to fork it to continue the conversation."
+    );
+    if (!confirmed) return;
+
+    const result = await finalizeChat(chatState.chat.chatId, chatState.chatKey);
+    if (result.success) {
+      chatStateDispatch({
+        type: "set_finalized",
+        finalized: true,
+      });
+    }
+  }, [
+    chatState.chat.chatId,
+    chatState.chatKey,
+    chatStateDispatch,
+  ]);
+
   const handleFork = async () => {
     const { chatId: newChatId, chatKey: newChatKey } = await createChatId();
     chatStateDispatch({
@@ -272,6 +295,11 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
   };
 
   const handleClearChat = () => {
+    if (chatState.chat.finalized) {
+      alert("Cannot delete a finalized chat. You may fork it to create a modifiable copy.");
+      return;
+    }
+
     const confirmed = window.confirm(
       "Are you sure you want to clear the entire chat?"
     );
@@ -492,7 +520,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
         }}
         height={height - 65} // Reduced to accommodate input and compact status bar
         onDeleteMessage={
-          !isLoading
+          (!isLoading && !chatState.chat.finalized)
             ? (msg) => {
                 const confirmed = window.confirm(
                   "Are you sure you want to delete this message and all subsequent messages?"
@@ -518,6 +546,11 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
         isLoading={isLoading || isAutoFillLoading}
       />
       <Stack spacing={1} sx={{ p: 1 }}>
+        {chatState.chat.finalized && (
+          <Box sx={{ color: "warning.main", textAlign: "center", mb: 1 }}>
+            This chat has been finalized and cannot be modified. Use the fork button to create a copy and continue the conversation.
+          </Box>
+        )}
         {chatState.chat.estimatedCost > MAX_CHAT_COST && (
           <Box sx={{ color: "error.main", textAlign: "center", mb: 1 }}>
             Chat cost has exceeded ${MAX_CHAT_COST.toFixed(2)}. Please start a
@@ -537,7 +570,8 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
           disabled={
             isLoading ||
             // chatState.chat.estimatedCost > MAX_CHAT_COST ||
-            (!cheapModels.includes(chatState.currentModel) && !openRouterKey)
+            (!cheapModels.includes(chatState.currentModel) && !openRouterKey) ||
+            chatState.chat.finalized
           }
         />
       </Stack>
@@ -558,6 +592,9 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
         onOpenSettings={() => setIsSettingsOpen(true)}
         onAutoFill={handleAutoFill}
         onFork={handleFork}
+        onFinalize={handleFinalize}
+        isFinalized={chatState.chat.finalized}
+        canFinalize={!!chatState.chatKey && !chatState.chat.finalized}
       />
       <OpenRouterKeyDialog
         open={isSettingsOpen}

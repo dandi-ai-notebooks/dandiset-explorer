@@ -2,6 +2,7 @@
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import LockIcon from "@mui/icons-material/Lock";
 import {
   Box,
   FormControl,
@@ -27,6 +28,9 @@ const StatusBar: FunctionComponent<{
   onOpenSettings?: () => void;
   onAutoFill?: () => void;
   onFork?: () => void;
+  onFinalize?: () => void;
+  isFinalized?: boolean;
+  canFinalize?: boolean;
 }> = ({
   selectedModel,
   onModelChange,
@@ -38,7 +42,10 @@ const StatusBar: FunctionComponent<{
   onClearChat,
   onOpenSettings,
   onAutoFill,
-  onFork
+  onFork,
+  onFinalize,
+  isFinalized,
+  canFinalize
 }) => {
   const numMessages = messages.length;
 
@@ -122,7 +129,7 @@ const StatusBar: FunctionComponent<{
         >
           <span style={{ fontSize: '0.7rem', fontWeight: 'bold' }}>Auto ask</span>
         </IconButton>
-        {onFork && (
+        {onFork && !isFinalized && (
           <IconButton
             size="small"
             title="Create a copy of this chat with a new ID"
@@ -137,6 +144,28 @@ const StatusBar: FunctionComponent<{
           >
             <ContentCopyIcon fontSize="small" sx={{ width: 16, height: 16 }} />
           </IconButton>
+        )}
+        {canFinalize && !isFinalized && (
+          <IconButton
+            size="small"
+            title="Finalize this chat - it will become read-only"
+            onClick={onFinalize}
+            sx={{
+              color: "text.secondary",
+              "&:hover": {
+                color: "warning.main",
+              },
+            }}
+            disabled={isLoading}
+          >
+            <LockIcon fontSize="small" sx={{ width: 16, height: 16 }} />
+          </IconButton>
+        )}
+        {isFinalized && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <LockIcon sx={{ width: 16, height: 16, color: 'warning.main' }} />
+            <span style={{ fontSize: '0.8rem', color: 'warning.main' }}>Finalized</span>
+          </Box>
         )}
       </Box>
       <Box
