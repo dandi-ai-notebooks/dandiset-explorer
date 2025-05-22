@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { ForkRight } from "@mui/icons-material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import SettingsIcon from "@mui/icons-material/Settings";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import LockIcon from "@mui/icons-material/Lock";
+import SettingsIcon from "@mui/icons-material/Settings";
 import {
   Box,
   FormControl,
@@ -129,10 +129,10 @@ const StatusBar: FunctionComponent<{
         >
           <span style={{ fontSize: '0.7rem', fontWeight: 'bold' }}>Auto ask</span>
         </IconButton>
-        {onFork && !isFinalized && (
+        {onFork && (
           <IconButton
             size="small"
-            title="Create a copy of this chat with a new ID"
+            title="Create a fork of this chat with a new ID"
             onClick={onFork}
             sx={{
               color: "text.secondary",
@@ -142,7 +142,7 @@ const StatusBar: FunctionComponent<{
             }}
             disabled={isLoading}
           >
-            <ContentCopyIcon fontSize="small" sx={{ width: 16, height: 16 }} />
+            <ForkRight fontSize="small" sx={{ width: 16, height: 16 }} />
           </IconButton>
         )}
         {canFinalize && !isFinalized && (

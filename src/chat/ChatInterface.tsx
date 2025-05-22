@@ -295,6 +295,10 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
       chatKey: newChatKey,
       chatId: newChatId,
     });
+    chatStateDispatch({
+      type: "set_finalized",
+      finalized: false
+    });
     setChatId(newChatId);
   };
 
@@ -568,8 +572,7 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
         )}
         {chatState.chat.estimatedCost > MAX_CHAT_COST && (
           <Box sx={{ color: "error.main", textAlign: "center", mb: 1 }}>
-            Chat cost has exceeded ${MAX_CHAT_COST.toFixed(2)}. Please start a
-            new chat.
+            Chat cost has exceeded ${MAX_CHAT_COST.toFixed(2)}. You may want to start a new chat.
           </Box>
         )}
         {!cheapModels.includes(chatState.currentModel) && !openRouterKey && (
