@@ -3,7 +3,7 @@ import { Box, Stack } from "@mui/material";
 import { FunctionComponent, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useJupyterConnectivity } from "../jupyter/JupyterConnectivity";
 import { getAllTools } from "./allTools";
-import { chatReducer, createChatId, initialChatState, loadChat, saveChat, finalizeChat } from "./Chat";
+import { chatReducer, createChatId, initialChatState, loadChat, saveChat } from "./Chat";
 import { loadChatKeyInfo, saveChatKeyInfo } from "./chatKeyStorage";
 import getAutoFillUserMessage from "./getAutoFillUserMessage";
 import MessageInput from "./MessageInput";
@@ -271,15 +271,17 @@ const ChatInterface: FunctionComponent<ChatInterfaceProps> = ({
     );
     if (!confirmed) return;
 
-    const result = await finalizeChat(chatState.chat.chatId, chatState.chatKey);
-    if (result.success) {
-      chatStateDispatch({
-        type: "set_finalized",
-        finalized: true,
-      });
-    }
+    chatStateDispatch({
+      type: "set_finalized",
+      finalized: true,
+    });
+
+    await saveChat({
+      ...chatState.chat,
+      finalized: true,
+    }, chatState.chatKey);
   }, [
-    chatState.chat.chatId,
+    chatState.chat,
     chatState.chatKey,
     chatStateDispatch,
   ]);
