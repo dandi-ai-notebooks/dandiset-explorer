@@ -118,6 +118,8 @@ elif line.startswith("# ") and "https://api.dandiarchive.org/" in line:
 else:
     new_lines.append(line)
 
+usage_script = "\\n".join(new_lines)
+
 print("\`\`\`python")
 print(usage_script)
 print("\`\`\`")
