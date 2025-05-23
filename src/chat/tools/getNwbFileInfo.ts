@@ -107,7 +107,7 @@ for i, line in enumerate(lines):
     txt0 = f"""from dandi.dandiapi import DandiAPIClient
 
 client = DandiAPIClient()
-dandiset = client.get_dandiset("{dandiset_id}", "{version}")
+dandiset = client.get_dandiset("${dandisetId}", "${dandisetVersion}")
 url = next(dandiset.get_assets_by_glob("{path}")).download_url
 """
     for x in txt0.split('\\n'):
