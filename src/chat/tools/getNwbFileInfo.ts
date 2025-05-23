@@ -112,10 +112,10 @@ url = next(dandiset.get_assets_by_glob("{path}")).download_url
 """
     for x in txt0.split('\\n'):
         new_lines.append(x)
-elif line.startswith("# ") and "https://api.dandiarchive.org/" in line:
-    lines[i] = "" # Hide where we display the asset URL so that the AI doesn't use it directly
-else:
-    new_lines.append(line)
+  elif line.startswith("# ") and "https://api.dandiarchive.org/" in line:
+      lines[i] = "" # Hide where we display the asset URL so that the AI doesn't use it directly
+  else:
+      new_lines.append(line)
 
 usage_script = "\\n".join(new_lines)
 
