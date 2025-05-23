@@ -85,7 +85,7 @@ io = pynwb.NWBHDF5IO(file=h5_file)
 nwb = io.read()
 \`\`\`
 
-However, before you do that, it's important that you first use the get_nwbfile_info tool (described below) in order to understand the contents of the NWB file and learn how to load it. The output of get_nwbfile_info will contain a usage script. That script is not meant to be shown to the user, but is meant to guide you in knowing how to construct scripts and know what data are available. Even though the URL is hard-coded in the usage script, you can use the asset.download_url as above to get the URL in a more transparent way.
+However, before you do that, it's important that you first use the get_nwbfile_info tool (described below) in order to understand the contents of the NWB file and learn how to load it. The output of get_nwbfile_info will contain a usage script. That script is not meant to be shown to the user, but is meant to guide you in knowing how to construct scripts and know what data are available.
 
 IMPORTANT: Do not attempt to load data from the NWB file until after you have gotten the usage info using the get_nwbfile_info tool.
 

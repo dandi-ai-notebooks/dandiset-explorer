@@ -98,12 +98,25 @@ usage_script = get_nwbfile_usage_script(download_url)
 # replace the url = "..." string with placeholder literally url = "..."
 # That way, the AI will not try to use the hard-coded url
 lines = usage_script.split("\\n")
+new_lines = []
 for i, line in enumerate(lines):
   if line.startswith("url = "):
-    lines[i] = 'url = "..."'
-  if line.startswith("# ") and "https://api.dandiarchive.org/" in line:
+    # remove the line url = "..." and replace it with code to get the url based on the path
+    # That way, the AI will not try to use the hard-coded url
+
+    # Look familiar?
+    txt0 = f"""from dandi.dandiapi import DandiAPIClient
+
+client = DandiAPIClient()
+dandiset = client.get_dandiset("{dandiset_id}", "{version}")
+url = next(dandiset.get_assets_by_glob("{path}")).download_url
+"""
+    for x in txt0.split('\\n'):
+        new_lines.append(x)
+elif line.startswith("# ") and "https://api.dandiarchive.org/" in line:
     lines[i] = "" # Hide where we display the asset URL so that the AI doesn't use it directly
-usage_script = "\\n".join(lines)
+else:
+    new_lines.append(line)
 
 print("\`\`\`python")
 print(usage_script)
