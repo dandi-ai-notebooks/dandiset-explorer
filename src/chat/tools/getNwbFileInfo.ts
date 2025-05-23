@@ -78,8 +78,7 @@ export const execute = async (
       canceled = true;
     }
 
-    await client.initiate();
-    await client.runCode(`
+     const code = `
 try:
   from get_nwbfile_info import get_nwbfile_usage_script
 except ImportError:
@@ -123,7 +122,11 @@ usage_script = "\\n".join(new_lines)
 print("\`\`\`python")
 print(usage_script)
 print("\`\`\`")
-`);
+`
+    console.info("Running code:");
+    console.info(code);
+    await client.initiate();
+    await client.runCode(code);
     await client.waitUntilIdle();
     await client.shutdown();
 
