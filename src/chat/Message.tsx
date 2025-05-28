@@ -184,7 +184,7 @@ const Message: FunctionComponent<MessageProps> = ({
       const toolName = findToolName(message.tool_call_id);
       if (toolName === "execute_python_code") {
         showAsMarkdown = false;
-        formattedMessageContent = <>{(formattedMessageContent as string).split("\\\\n").map((line: string) => (
+        formattedMessageContent = <>{(formattedMessageContent as string).split("\n").map((line: string) => (
           <div>{line}</div>
         ))}
         </>
