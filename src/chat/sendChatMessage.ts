@@ -178,6 +178,8 @@ When loading data for illustration, be careful about the size of the data, since
 
 When showing unit IDs or channel IDs, be sure to use the actual IDs rather than just the indices.
 
+The correct way to load spike times for a unit (for example first unit) is nwb.units.spike_times_index[0]. nwb.units.spike_times_index[i] is the vector of spike times. It is not actually an index. You should not use nwb.units.spike_times.
+
 \`plt.style.use('seaborn')\` is deprecated. If you want to use seaborn styling, use:
 \`\`\`
 import seaborn as sns
