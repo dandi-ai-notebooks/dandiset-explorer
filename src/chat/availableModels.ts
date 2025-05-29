@@ -70,6 +70,13 @@ export const AVAILABLE_MODELS = [
         prompt: 0.4,
         completion: 1.6
       }
+    },
+    {
+      model: "deepseek/deepseek-r1-0528",
+      label: "deepseek-r1-0528",
+      cost: {
+        prompt: 0.5,
+        completion: 2.18
+      }
     }
-
   ];
