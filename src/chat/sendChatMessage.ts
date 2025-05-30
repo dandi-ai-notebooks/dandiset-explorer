@@ -381,7 +381,8 @@ export const sendChatMessage = async (
           }
           const toolResult = await handleToolCall(tc, {
             jupyterConnectivity: o.jupyterConnectivity,
-            imageUrlsNeedToBeUser: model.startsWith("openai/"),
+            // imageUrlsNeedToBeUser: model.startsWith("openai/") || model.startsWith("anthropic/"),
+            imageUrlsNeedToBeUser: true,
             onCancelRef
           });
           const toolMessage: ORMessage = {
