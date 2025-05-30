@@ -85,39 +85,7 @@ except ImportError:
   print("get_nwbfile_info module not found. Please install it first.")
   raise
 
-from dandi.dandiapi import DandiAPIClient
-
-client = DandiAPIClient()
-dandiset = client.get_dandiset("${dandisetId}", "${dandisetVersion}")
-
-download_url = next(dandiset.get_assets_by_glob("${assetPath}")).download_url
-
-usage_script = get_nwbfile_usage_script(download_url)
-
-# replace the url = "..." string with placeholder literally url = "..."
-# That way, the AI will not try to use the hard-coded url
-lines = usage_script.split("\\n")
-new_lines = []
-for i, line in enumerate(lines):
-  if line.startswith("url = "):
-    # remove the line url = "..." and replace it with code to get the url based on the path
-    # That way, the AI will not try to use the hard-coded url
-
-    # Look familiar?
-    txt0 = f"""from dandi.dandiapi import DandiAPIClient
-
-client = DandiAPIClient()
-dandiset = client.get_dandiset("${dandisetId}", "${dandisetVersion}")
-url = next(dandiset.get_assets_by_glob("${assetPath}")).download_url
-"""
-    for x in txt0.split('\\n'):
-        new_lines.append(x)
-  elif line.startswith("# ") and "https://api.dandiarchive.org/" in line:
-      lines[i] = "" # Hide where we display the asset URL so that the AI doesn't use it directly
-  else:
-      new_lines.append(line)
-
-usage_script = "\\n".join(new_lines)
+usage_script = get_nwbfile_usage_script("DANDI:${dandisetId}:${dandisetVersion}:${assetPath}")
 
 print("\`\`\`python")
 print(usage_script)
