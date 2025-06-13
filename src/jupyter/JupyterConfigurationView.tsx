@@ -150,7 +150,10 @@ const JupyterConfigurationView: FunctionComponent<JupyterViewProps> = ({
   const [isAddServerDialogOpen, setIsAddServerDialogOpen] = useState(false);
   const [isDeleteConfirmDialogOpen, setIsDeleteConfirmDialogOpen] =
     useState(false);
+  const [isTokenDialogOpen, setIsTokenDialogOpen] = useState(false);
   const [serverToDelete, setServerToDelete] = useState<string | null>(null);
+  const [serverForToken, setServerForToken] = useState<string | null>(null);
+  const [tokenInput, setTokenInput] = useState("");
   const [newServerUrl, setNewServerUrl] = useState("");
   const [newServerName, setNewServerName] = useState("");
 
@@ -245,23 +248,30 @@ const JupyterConfigurationView: FunctionComponent<JupyterViewProps> = ({
     setIsDeleteConfirmDialogOpen(true);
   }, []);
 
-  const handleSetToken = useCallback(async (url: string) => {
-    const token = prompt("Enter the token for this server");
-    if (token === null) {
-      return;
-    }
-    setServerConfig((prev) => {
-      if (prev) {
-        return {
-          ...prev,
-          servers: prev.servers.map((s) =>
-            s.url === url ? { ...s, token } : s,
-          ),
-        };
-      }
-      return prev;
-    });
+  const handleSetToken = useCallback((url: string) => {
+    setServerForToken(url);
+    setTokenInput("");
+    setIsTokenDialogOpen(true);
   }, []);
+
+  const handleTokenSubmit = useCallback(() => {
+    if (serverForToken) {
+      setServerConfig((prev) => {
+        if (prev) {
+          return {
+            ...prev,
+            servers: prev.servers.map((s) =>
+              s.url === serverForToken ? { ...s, token: tokenInput } : s,
+            ),
+          };
+        }
+        return prev;
+      });
+    }
+    setIsTokenDialogOpen(false);
+    setServerForToken(null);
+    setTokenInput("");
+  }, [serverForToken, tokenInput]);
 
   const originToAllow = window.location.origin;
 
@@ -476,6 +486,43 @@ const JupyterConfigurationView: FunctionComponent<JupyterViewProps> = ({
             </Button>
             <Button onClick={handleAddServer} disabled={!newServerUrl}>
               Add
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Token Dialog */}
+        <Dialog
+          open={isTokenDialogOpen}
+          onClose={() => {
+            setIsTokenDialogOpen(false);
+            setServerForToken(null);
+            setTokenInput("");
+          }}
+        >
+          <DialogTitle>Set Server Token</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Token"
+              type="text"
+              fullWidth
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => {
+                setIsTokenDialogOpen(false);
+                setServerForToken(null);
+                setTokenInput("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleTokenSubmit}>
+              Save
             </Button>
           </DialogActions>
         </Dialog>
