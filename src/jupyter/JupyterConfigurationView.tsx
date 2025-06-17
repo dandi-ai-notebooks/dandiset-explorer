@@ -1,4 +1,3 @@
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import {
@@ -7,7 +6,6 @@ import {
   IconButton,
   Paper,
   Stack,
-  Tooltip,
   Typography,
   Radio,
   Table,
@@ -33,6 +31,7 @@ import {
   builtInLocalServers,
   isJupyterServerConfig,
 } from "./types";
+import MarkdownContent from "../components/MarkdownContent";
 
 type JupyterViewProps = {
   width?: number;
@@ -521,75 +520,49 @@ const JupyterConfigurationView: FunctionComponent<JupyterViewProps> = ({
             >
               Cancel
             </Button>
-            <Button onClick={handleTokenSubmit}>
-              Save
-            </Button>
+            <Button onClick={handleTokenSubmit}>Save</Button>
           </DialogActions>
         </Dialog>
 
         {/* Host Instructions */}
-        <Paper elevation={2} sx={{ p: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            Hosting Instructions
-          </Typography>
-          <Typography variant="body2" color="text.secondary" paragraph>
-            To run a local Jupyter server:
-          </Typography>
-          <Stack spacing={1} sx={{ mb: 2 }}>
-            <Box
-              component="pre"
-              sx={{
-                bgcolor: "background.paper",
-                p: 2,
-                borderRadius: 1,
-                overflowX: "auto",
-                fontSize: "0.8rem",
-              }}
-            >
-              pip install jupyterlab
-            </Box>
-          </Stack>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Then start Jupyter lab with:
-          </Typography>
-          <Stack spacing={1}>
-            <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
-              <Tooltip title="Copy command">
-                <IconButton
-                  size="small"
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      `jupyter lab --NotebookApp.allow_origin='${originToAllow}' --NotebookApp.token='' --NotebookApp.disable_check_xsrf="True" --no-browser --port=${jupyterServerUrl.split(":")[2] || "8888"} --MappingKernelManager.cull_interval="300" --MappingKernelManager.cull_idle_timeout="300" --MappingKernelManager.cull_connected="True"`,
-                    );
-                  }}
-                >
-                  <ContentCopyIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Box>
-            <Box
-              component="pre"
-              sx={{
-                bgcolor: "background.paper",
-                p: 2,
-                borderRadius: 1,
-                overflowX: "auto",
-                fontSize: "0.8rem",
-              }}
-            >
-              jupyter lab --NotebookApp.allow_origin='{originToAllow}'{" "}
-              --NotebookApp.token='' --NotebookApp.disable_check_xsrf="True"{" "}
-              --no-browser --port={jupyterServerUrl.split(":")[2] || "8888"}{" "}
-              --MappingKernelManager.cull_interval="300"
-            </Box>
-          </Stack>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Finally, update the above URL and optional token in the form above.
-          </Typography>
-        </Paper>
+        <MarkdownContent
+          content={hostInstructions
+            .split("{ originToAllow }")
+            .join(originToAllow)}
+        />
       </Box>
     </ScrollY>
   );
 };
+
+const hostInstructions = `
+## Instructions
+
+**To run a local Jupyter server**, you need to install JupyterLab. You can do this using pip:
+
+\`\`\`bash
+pip install jupyterlab
+\`\`\`
+
+Then, start JupyterLab with the following command:
+
+\`\`\`bash
+jupyter lab --NotebookApp.allow_origin='{ originToAllow }' --NotebookApp.token='' --NotebookApp.disable_check_xsrf="True" --no-browser --port=8888 --MappingKernelManager.cull_interval="300" --MappingKernelManager.cull_idle_timeout="300" --MappingKernelManager.cull_connected="True"
+\`\`\`
+
+This command allows connections from your local frontend application, disables the token for easier access, and sets up kernel culling to manage resources effectively.
+
+Finally, update the URL and optional token in the form above to connect to your local Jupyter server.
+
+**To connect to JupyterHub (e.g., DANDI Hub)**, you can use the \`jupyter-web-proxy\` package. Run:
+
+\`\`\`bash
+npx jupyter-web-proxy https://hub.dandiarchive.org/user/<user> -t <token> -o { originToAllow }
+\`\`\`
+
+Replace \`<user>\` with your username and \`<token>\` with your JupyterHub token. Then select http://localhost:8010 above.
+
+For more information, see the [jupyter-web-proxy documentation](https://www.npmjs.com/package/jupyter-web-proxy).
+`;
 
 export default JupyterConfigurationView;

@@ -34,12 +34,12 @@ export const builtInLocalServers: JupyterServer[] = [
   {
     url: "http://localhost:8888",
     name: "",
-    token: "",
+    token: "default local server",
     isBuiltIn: true,
   },
   {
-    url: "http://localhost:8889",
-    name: "",
+    url: "http://localhost:8010",
+    name: "jupyter-web-proxy for JupyterHub",
     token: "",
     isBuiltIn: true,
   },
